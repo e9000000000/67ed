@@ -12,8 +12,8 @@ control per tab, lazy session restore, open/save/save-as, drag-drop, single-inst
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
 numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
 Shift+F3, match case, whole word, regex, replace all), go-to-line (Ctrl+G),
-insert/overwrite (Insert), and dirty-buffer crash recovery. 100 MB files are
-measured in `docs/PERF.md`.
+insert/overwrite (Insert), external-change watching/reload, and dirty-buffer crash
+recovery. 100 MB files are measured in `docs/PERF.md`.
 
 Known gaps: tab drag-reorder/context menu, dark native file dialogs.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
@@ -60,6 +60,7 @@ src/
   editor.*          per-tab Scintilla wrapper, theme, view state, chunked save
   headless.*        --selftest / --bench / --make-fixture, hidden host only
   fileio.*          file read/write, encoding/EOL detection, atomic save
+  filewatch.*       external file-change stamps
   session.*         session/settings persistence, recovery snapshots
   json.*            small JSON value/parser/serializer
   theme.h           palette and UI metrics
@@ -138,7 +139,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
 
 - `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
   set/get/find/undo, search/replace (plain and regex), line navigation,
-  insert/overwrite, and chunked save. Expect `summary passed=100 failed=0`.
+  insert/overwrite, file-change stamps, and chunked save. Expect
+  `summary passed=106 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
 - All three accept `--log <path>`.

@@ -173,6 +173,7 @@ void MenuBar::rebuildMenus() {
     view.items.push_back(MakeItem(kCmdZoomOut, L"Zoom Out", L"Ctrl+-", has));
     view.items.push_back(MakeItem(kCmdZoomReset, L"Reset Zoom", L"Ctrl+0", has));
     view.items.push_back(MakeSeparator());
+    view.items.push_back(MakeItem(kCmdReload, L"Reload from Disk", L"Ctrl+R", has));
     view.items.push_back(MakeItem(kCmdFont, L"Font...", L"", true));
     menus_.push_back(std::move(view));
 

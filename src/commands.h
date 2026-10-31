@@ -5,6 +5,7 @@
 enum : unsigned int {
     kCmdNew = 1001,
     kCmdOpen,
+    kCmdReload,
     kCmdSave,
     kCmdSaveAs,
     kCmdCloseTab,

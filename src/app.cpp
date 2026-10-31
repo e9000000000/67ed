@@ -28,6 +28,7 @@ constexpr wchar_t kMainClass[] = L"67edMainWindow";
 constexpr wchar_t kAppName[] = L"67ed";
 constexpr UINT_PTR kTimerSession = 1;
 constexpr UINT_PTR kTimerRecovery = 2;
+constexpr UINT_PTR kTimerWatch = 3;
 constexpr UINT kRecoveryIntervalMs = 5000;
 constexpr unsigned long long kLargeBufferBytes = 32ull * 1024ull * 1024ull;
 constexpr ULONGLONG kLargeRecoveryIntervalMs = 60000;
@@ -184,6 +185,7 @@ bool App::create(const std::vector<std::wstring>& initialPaths) {
     if (Tab* tab = activeTab()) {
         editor::Focus(tab->sci);
     }
+    SetTimer(hwnd_, kTimerWatch, 2000, nullptr);
     return true;
 }
 
@@ -223,6 +225,7 @@ void App::createAccelerators() {
     ACCEL accels[] = {
         {FVIRTKEY | FCONTROL, 'N', kCmdNew},
         {FVIRTKEY | FCONTROL, 'O', kCmdOpen},
+        {FVIRTKEY | FCONTROL, 'R', kCmdReload},
         {FVIRTKEY | FCONTROL, 'S', kCmdSave},
         {FVIRTKEY | FCONTROL | FSHIFT, 'S', kCmdSaveAs},
         {FVIRTKEY | FCONTROL, 'W', kCmdCloseTab},
@@ -264,6 +267,11 @@ void App::onCommand(UINT id) {
         break;
     case kCmdOpen:
         openFileDialog();
+        break;
+    case kCmdReload:
+        if (tab && !tab->path.empty()) {
+            reloadTabFromDisk(*tab, false);
+        }
         break;
     case kCmdSave:
         if (tab) {
@@ -695,6 +703,9 @@ void App::updateTitle() {
     if (tab && tab->dirty) {
         title += L" *";
     }
+    if (tab && tab->diskChanged) {
+        title += L" [disk changed]";
+    }
     title += L" - ";
     title += kAppName;
     SetWindowTextW(hwnd_, title.c_str());
@@ -854,6 +865,10 @@ bool App::ensureLoaded(int index) {
     if (!recovered) {
         tab.dirty = false;
     }
+    if (!tab.path.empty()) {
+        tab.diskStamp = filewatch::Read(tab.path);
+    }
+    tab.diskChanged = false;
     restoreTabView(tab);
     ShowWindow(sci, SW_HIDE);
     updateTabBar();
@@ -871,6 +886,105 @@ void App::restoreTabView(Tab& tab) {
     Sci(&tab, SCI_SETSEL, static_cast<uptr_t>(anchor), static_cast<sptr_t>(cursor));
     Sci(&tab, SCI_SETFIRSTVISIBLELINE, static_cast<uptr_t>(std::max(0, tab.firstVisibleLine)));
     Sci(&tab, SCI_SETXOFFSET, static_cast<uptr_t>(std::max(0, tab.xOffset)));
+}
+
+bool App::reloadTabFromDisk(Tab& tab, bool force) {
+    if (tab.path.empty()) {
+        return false;
+    }
+    if (!tab.loaded) {
+        const int index = indexOfTab(&tab);
+        return index >= 0 && ensureLoaded(index);
+    }
+    if (tab.dirty && !force) {
+        return false;
+    }
+
+    LoadedFile file;
+    std::wstring error;
+    HCURSOR oldCursor = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
+    const bool ok = LoadFile(tab.path, file, error);
+    SetCursor(oldCursor);
+    if (!ok) {
+        ShowError(hwnd_, error);
+        return false;
+    }
+    if (file.binary && !force) {
+        return false;
+    }
+
+    captureTabState(tab);
+    editor::SetText(tab.sci, file.text);
+    tab.encoding = file.encoding;
+    tab.bom = file.bom;
+    tab.eol = file.eol;
+    tab.readOnly = file.readOnly;
+    if (file.size > 16ull * 1024ull * 1024ull) {
+        tab.wrap = false;
+    }
+    editor::SetWrap(tab.sci, tab.wrap);
+    editor::SetEol(tab.sci, tab.eol);
+    editor::SetReadOnly(tab.sci, tab.readOnly);
+    editor::UpdateLineNumberWidth(tab.sci);
+
+    clearRecovery(tab);
+    tab.dirty = false;
+    tab.needsSnapshot = false;
+    tab.lastEditTick = 0;
+    tab.lastRecoveryTick = 0;
+    tab.diskChanged = false;
+    tab.diskStamp = filewatch::Read(tab.path);
+
+    restoreTabView(tab);
+    updateTabBar();
+    updateStatus();
+    updateTitle();
+    markSessionDirty();
+    return true;
+}
+
+void App::checkDiskChanges() {
+    if (!hwnd_ || closing_) {
+        return;
+    }
+    for (auto& tabPtr : tabs_) {
+        Tab& tab = *tabPtr;
+        if (!tab.loaded || !tab.sci || tab.path.empty()) {
+            continue;
+        }
+        const filewatch::Stamp current = filewatch::Read(tab.path);
+        if (!current.valid) {
+            if (!tab.diskChanged) {
+                tab.diskChanged = true;
+                updateTitle();
+            }
+            continue;
+        }
+        if (!tab.diskStamp.valid) {
+            tab.diskStamp = current;
+            continue;
+        }
+        if (filewatch::Same(current, tab.diskStamp)) {
+            if (tab.diskChanged) {
+                tab.diskChanged = false;
+                updateTitle();
+            }
+            continue;
+        }
+        if (tab.dirty) {
+            if (!tab.diskChanged) {
+                tab.diskChanged = true;
+                updateTitle();
+            }
+            continue;
+        }
+        if (!reloadTabFromDisk(tab, false)) {
+            if (!tab.diskChanged) {
+                tab.diskChanged = true;
+                updateTitle();
+            }
+        }
+    }
 }
 
 void App::captureTabState(Tab& tab) {
@@ -1020,6 +1134,8 @@ bool App::saveTab(Tab& tab, bool saveAs) {
     Sci(&tab, SCI_SETSAVEPOINT);
     clearRecovery(tab);
     tab.dirty = false;
+    tab.diskChanged = false;
+    tab.diskStamp = filewatch::Read(tab.path);
     AddRecentFile(settings_, tab.path);
     SaveSettings(settings_);
     updateTabBar();
@@ -1644,6 +1760,8 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             if (snapshotRecovery()) {
                 markSessionDirty();
             }
+        } else if (wParam == kTimerWatch) {
+            checkDiskChanges();
         }
         return 0;
     case WM_SETFOCUS: {
@@ -1723,6 +1841,7 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     case WM_DESTROY:
         KillTimer(hwnd_, kTimerSession);
         KillTimer(hwnd_, kTimerRecovery);
+        KillTimer(hwnd_, kTimerWatch);
         recoveryTimerActive_ = false;
         tabs_.clear();
         if (accel_) {

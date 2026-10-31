@@ -20,6 +20,7 @@
 #include "Scintilla.h"
 #include "editor.h"
 #include "fileio.h"
+#include "filewatch.h"
 #include "json.h"
 #include "linenav.h"
 #include "search.h"
@@ -262,6 +263,17 @@ void TestFileIo(TestLog& log, const fs::path& dir) {
     const fs::path missing = dir / "does-not-exist.txt";
     LoadedFile missingFile;
     log.check(!LoadFile(missing.wstring(), missingFile, error), "fileio.missing.rejected");
+
+    const fs::path watchPath = dir / "watch.txt";
+    log.check(WriteBytes(watchPath, "one"), "filewatch.write");
+    const filewatch::Stamp firstStamp = filewatch::Read(watchPath.wstring());
+    log.check(firstStamp.valid, "filewatch.read");
+    log.check(filewatch::Same(firstStamp, filewatch::Read(watchPath.wstring())),
+              "filewatch.same");
+    log.check(WriteBytes(watchPath, "a much longer replacement"), "filewatch.rewrite");
+    log.check(!filewatch::Same(firstStamp, filewatch::Read(watchPath.wstring())),
+              "filewatch.changed");
+    log.check(!filewatch::Read(missing.wstring()).valid, "filewatch.missing");
 }
 
 void TestSession(TestLog& log, const fs::path& dir) {

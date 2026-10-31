@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "findbar.h"
+#include "filewatch.h"
 #include "linebar.h"
 #include "menubar.h"
 #include "session.h"
@@ -31,6 +32,8 @@ struct Tab {
     EolMode eol = EolMode::Crlf;
     bool wrap = true;
     int zoom = 0;
+    bool diskChanged = false;
+    filewatch::Stamp diskStamp;
 
     long long cursor = 0;
     long long anchor = 0;
@@ -93,6 +96,8 @@ private:
     bool showSaveDialog(std::wstring& path, const Tab* tab);
     void captureTabState(Tab& tab);
     void restoreTabView(Tab& tab);
+    bool reloadTabFromDisk(Tab& tab, bool force);
+    void checkDiskChanges();
 
     void toggleWrap();
     void toggleLineNumbers();
