@@ -72,7 +72,8 @@ disk. Dirty tabs keep their text and show `[disk changed]` in the title; Ctrl+R
 reloads from disk.
 
 Tabs: drag a tab left or right to reorder it; the new order is saved in the
-session. File > Open Recent lists up to eight files.
+session. Right-click a tab for Close, Close Others, Close All, Copy Path, and
+Reload. File > Open Recent lists up to eight files.
 
 Recovery: open a file, type a character, wait about 7 seconds for the snapshot,
 then kill the process (Task Manager or `Stop-Process -Force`). Relaunch with no

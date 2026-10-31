@@ -15,6 +15,7 @@ constexpr UINT kSelect = WM_APP + 0x101;
 constexpr UINT kClose = WM_APP + 0x102;
 constexpr UINT kNew = WM_APP + 0x103;
 constexpr UINT kReorder = WM_APP + 0x104;
+constexpr UINT kContext = WM_APP + 0x105;
 }  // namespace tabbar_events
 
 class TabBar {

@@ -7,6 +7,7 @@
 #include <windowsx.h>
 
 #include <algorithm>
+#include <cstring>
 #include <ctime>
 #include <memory>
 #include <string>
@@ -56,6 +57,30 @@ std::wstring MakeTabId() {
 
 std::wstring RecoveryDirectory() {
     return DataDirectory() + L"\\recovery";
+}
+
+bool CopyTextToClipboard(HWND owner, const std::wstring& text) {
+    if (!OpenClipboard(owner)) {
+        return false;
+    }
+    EmptyClipboard();
+    bool ok = false;
+    const size_t bytes = (text.size() + 1) * sizeof(wchar_t);
+    if (HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes)) {
+        if (void* destination = GlobalLock(memory)) {
+            std::memcpy(destination, text.c_str(), bytes);
+            GlobalUnlock(memory);
+            if (SetClipboardData(CF_UNICODETEXT, memory)) {
+                ok = true;
+            } else {
+                GlobalFree(memory);
+            }
+        } else {
+            GlobalFree(memory);
+        }
+    }
+    CloseClipboard();
+    return ok;
 }
 
 void CenterWindow(HWND hwnd, int width, int height) {    RECT work{};
@@ -307,6 +332,49 @@ void App::onCommand(UINT id) {
         break;
     case kCmdCloseTab:
         closeTab(active_);
+        break;
+    case kCmdCloseOthers: {
+        Tab* keep = activeTab();
+        if (!keep) {
+            break;
+        }
+        for (int i = static_cast<int>(tabs_.size()) - 1; i >= 0; --i) {
+            if (tabs_[i].get() == keep) {
+                continue;
+            }
+            if (!promptSave(*tabs_[i])) {
+                break;
+            }
+            removeTabAt(i);
+        }
+        const int keepIndex = indexOfTab(keep);
+        if (keepIndex >= 0) {
+            selectTab(keepIndex);
+        }
+        break;
+    }
+    case kCmdCloseAll:
+        for (int i = static_cast<int>(tabs_.size()) - 1; i >= 0; --i) {
+            if (i >= static_cast<int>(tabs_.size())) {
+                continue;
+            }
+            if (!promptSave(*tabs_[i])) {
+                break;
+            }
+            removeTabAt(i);
+        }
+        if (tabs_.empty()) {
+            PostMessageW(hwnd_, WM_CLOSE, 0, 0);
+        } else {
+            selectTab(active_);
+        }
+        break;
+    case kCmdCopyPath:
+        if (tab && !tab->path.empty()) {
+            CopyTextToClipboard(hwnd_, tab->path);
+        } else {
+            MessageBeep(MB_ICONASTERISK);
+        }
         break;
     case kCmdExit:
         PostMessageW(hwnd_, WM_CLOSE, 0, 0);
@@ -1841,6 +1909,43 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             updateStatus();
             markSessionDirty();
         }
+        return 0;
+    }
+    case tabbar_events::kContext: {
+        const int index = static_cast<int>(wParam);
+        if (index < 0 || index >= static_cast<int>(tabs_.size())) {
+            return 0;
+        }
+        if (active_ != index) {
+            selectTab(index);
+        }
+        if (active_ != index) {
+            return 0;
+        }
+        POINT point{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        ClientToScreen(tabBar_.hwnd(), &point);
+
+        std::vector<MenuItem> items;
+        const auto add = [&](UINT id, const wchar_t* label, bool enabled,
+                             const wchar_t* shortcut = L"") {
+            MenuItem item;
+            item.id = id;
+            item.label = label;
+            item.enabled = enabled;
+            item.shortcut = shortcut;
+            items.push_back(std::move(item));
+        };
+        add(kCmdCloseTab, L"Close", true);
+        add(kCmdCloseOthers, L"Close Others", tabs_.size() > 1);
+        add(kCmdCloseAll, L"Close All", true);
+        MenuItem separator;
+        separator.separator = true;
+        items.push_back(std::move(separator));
+        const Tab* currentTab = activeTab();
+        const bool hasPath = currentTab && !currentTab->path.empty();
+        add(kCmdCopyPath, L"Copy Path", hasPath);
+        add(kCmdReload, L"Reload from Disk", hasPath, L"Ctrl+R");
+        menuBar_.showContextMenu(point, std::move(items));
         return 0;
     }
     case tabbar_events::kNew:

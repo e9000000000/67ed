@@ -262,14 +262,29 @@ int MenuBar::popupItemHeight() const {
     return theme::Scale(26, dpi_);
 }
 
+bool MenuBar::hasActivePopup() const {
+    return contextMode_ || (openMenu_ >= 0 && openMenu_ < static_cast<int>(menus_.size()));
+}
+
+const std::vector<MenuItem>& MenuBar::activeItems() const {
+    static const std::vector<MenuItem> empty;
+    if (contextMode_) {
+        return contextItems_;
+    }
+    if (openMenu_ >= 0 && openMenu_ < static_cast<int>(menus_.size())) {
+        return menus_[openMenu_].items;
+    }
+    return empty;
+}
+
 int MenuBar::popupWidth() const {
-    if (openMenu_ < 0 || openMenu_ >= static_cast<int>(menus_.size())) {
+    if (!hasActivePopup()) {
         return theme::Scale(200, dpi_);
     }
     HDC dc = GetDC(hwnd_);
     HGDIOBJ oldFont = SelectObject(dc, font_);
     int maxWidth = theme::Scale(200, dpi_);
-    for (const auto& item : menus_[openMenu_].items) {
+    for (const auto& item : activeItems()) {
         if (item.separator) {
             continue;
         }
@@ -287,11 +302,11 @@ int MenuBar::popupWidth() const {
 }
 
 int MenuBar::popupHeight() const {
-    if (openMenu_ < 0 || openMenu_ >= static_cast<int>(menus_.size())) {
+    if (!hasActivePopup()) {
         return theme::Scale(40, dpi_);
     }
     int height = theme::Scale(8, dpi_);
-    for (const auto& item : menus_[openMenu_].items) {
+    for (const auto& item : activeItems()) {
         height += item.separator ? theme::Scale(9, dpi_) : popupItemHeight();
     }
     return height + theme::Scale(4, dpi_);
@@ -310,6 +325,8 @@ void MenuBar::showPopup(int index) {
         return;
     }
     openMenu_ = index;
+    contextMode_ = false;
+    contextItems_.clear();
     hoverItem_ = -1;
     pressedItem_ = -1;
 
@@ -365,6 +382,8 @@ void MenuBar::hidePopup() {
         ShowWindow(popup_, SW_HIDE);
     }
     openMenu_ = -1;
+    contextMode_ = false;
+    contextItems_.clear();
     hoverItem_ = -1;
     pressedItem_ = -1;
     invalidate();
@@ -373,9 +392,60 @@ void MenuBar::hidePopup() {
     }
 }
 
+void MenuBar::showContextMenu(POINT screenPoint, std::vector<MenuItem> items) {
+    if (items.empty()) {
+        return;
+    }
+    hidePopup();
+    contextMode_ = true;
+    contextItems_ = std::move(items);
+    openMenu_ = -1;
+    hoverItem_ = -1;
+    pressedItem_ = -1;
+
+    if (!popup_) {
+        popup_ = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_TOPMOST, kMenuPopupClass, L"",
+                                 WS_POPUP, 0, 0, 100, 100, nullptr, nullptr, instance_, this);
+        if (!popup_) {
+            contextMode_ = false;
+            contextItems_.clear();
+            return;
+        }
+    }
+
+    const int width = popupWidth();
+    const int height = popupHeight();
+    RECT work{};
+    SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
+    int x = screenPoint.x;
+    int y = screenPoint.y;
+    if (x + width > work.right) {
+        x = work.right - width;
+    }
+    if (y + height > work.bottom) {
+        y = screenPoint.y - height;
+        if (y < work.top) {
+            y = work.top;
+        }
+    }
+    x = std::max(x, static_cast<int>(work.left));
+    y = std::max(y, static_cast<int>(work.top));
+
+    SetWindowPos(popup_, HWND_TOPMOST, x, y, width, height,
+                 SWP_SHOWWINDOW | SWP_NOACTIVATE);
+    ShowWindow(popup_, SW_SHOW);
+    SetForegroundWindow(popup_);
+    SetFocus(popup_);
+    SetCapture(popup_);
+    InvalidateRect(popup_, nullptr, FALSE);
+}
+
 void MenuBar::openMenu(int index) {
     if (index < 0 || index >= static_cast<int>(menus_.size())) {
         return;
+    }
+    if (contextMode_) {
+        hidePopup();
     }
     if (openMenu_ == index) {
         hidePopup();
@@ -394,12 +464,12 @@ void MenuBar::closeMenu() {
 
 int MenuBar::itemFromPoint(int x, int y) const {
     (void)x;
-    if (openMenu_ < 0 || openMenu_ >= static_cast<int>(menus_.size())) {
+    if (!hasActivePopup()) {
         return -1;
     }
     const int padding = theme::Scale(4, dpi_);
     int cursorY = padding;
-    const auto& items = menus_[openMenu_].items;
+    const auto& items = activeItems();
     for (size_t i = 0; i < items.size(); ++i) {
         const int height = items[i].separator ? theme::Scale(9, dpi_) : popupItemHeight();
         if (y >= cursorY && y < cursorY + height) {
@@ -411,7 +481,7 @@ int MenuBar::itemFromPoint(int x, int y) const {
 }
 
 void MenuBar::paintPopup(HDC target) {
-    if (openMenu_ < 0 || openMenu_ >= static_cast<int>(menus_.size())) {
+    if (!hasActivePopup()) {
         return;
     }
     RECT client{};
@@ -428,7 +498,7 @@ void MenuBar::paintPopup(HDC target) {
 
     const int padding = theme::Scale(4, dpi_);
     int cursorY = padding;
-    const auto& items = menus_[openMenu_].items;
+    const auto& items = activeItems();
     for (size_t i = 0; i < items.size(); ++i) {
         const MenuItem& item = items[i];
         if (item.separator) {
@@ -483,10 +553,10 @@ void MenuBar::paintPopup(HDC target) {
 }
 
 void MenuBar::executePopupItem(int index) {
-    if (openMenu_ < 0 || openMenu_ >= static_cast<int>(menus_.size())) {
+    if (!hasActivePopup()) {
         return;
     }
-    const auto& items = menus_[openMenu_].items;
+    const auto& items = activeItems();
     if (index < 0 || index >= static_cast<int>(items.size())) {
         return;
     }
@@ -499,10 +569,10 @@ void MenuBar::executePopupItem(int index) {
 }
 
 void MenuBar::movePopupSelection(int direction) {
-    if (openMenu_ < 0 || openMenu_ >= static_cast<int>(menus_.size())) {
+    if (!hasActivePopup()) {
         return;
     }
-    const auto& items = menus_[openMenu_].items;
+    const auto& items = activeItems();
     if (items.empty()) {
         return;
     }

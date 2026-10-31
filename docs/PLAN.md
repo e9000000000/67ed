@@ -17,10 +17,11 @@
 - **M0 complete (2026-10-31).** Native window, custom dark menu/tab/status chrome,
   Scintilla per tab, open/save, chunked 100 MB load, single-instance handoff,
   custom dark scrollbars, lazy session restore.
-- **M1 in progress.** Tabs, lazy loading, session persistence, dirty prompts,
-  duplicate-path focusing, close/reopen restore, dirty-buffer recovery snapshots,
-  tab drag-reorder, and the recent-files menu. Headless `--selftest` (118 checks),
-  `--bench`, and `--make-fixture` are in place. Still missing: tab context menu.
+- **M1 complete (2026-11-01).** Tabs, lazy loading, session persistence, dirty
+  prompts, duplicate-path focusing, close/reopen restore, dirty-buffer recovery
+  snapshots, tab drag-reorder, the dark tab context menu, and the recent-files
+  menu. Headless `--selftest` (118 checks), `--bench`, and `--make-fixture` are in
+  place.
 - **M2 complete (2026-11-01).** Custom dark menu bar and popups, font dialog,
   wrap, line numbers, EOL, zoom, find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3,
   match case, whole word, regex, replace, replace all), go-to-line (Ctrl+G), F5
@@ -29,7 +30,8 @@
   matrix, drag-and-drop, recent files, read-only/binary/2 GB guards, external-change
   watching (auto-reload clean tabs, conflict marker for dirty tabs), and manual
   Reload from Disk (Ctrl+R).
-- **M4 pending.**
+- **M4 in progress.** Polish remains: dark native file dialogs, crash logging,
+  optional file associations, final DPI pass, and startup-time measurement.
 
 Latest measured 98.4 MiB file: 440 ms open, 226 ms chunked save, 210 MB RSS after
 save. Release EXE 1.38 MiB. See `docs/PERF.md`.

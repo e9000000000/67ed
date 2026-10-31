@@ -29,7 +29,8 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
 - Go to line: Ctrl+G
-- Tabs: drag to reorder, middle-click to close, recent-files menu
+- Tabs: drag to reorder, middle-click to close, right-click for Close / Close
+  Others / Close All / Copy Path / Reload; recent-files menu
 - Insert/overwrite: Insert; status shows `OVR`
 - External changes: clean tabs reload automatically; dirty tabs show
   `[disk changed]` in the title; Ctrl+R reloads from disk
@@ -40,7 +41,7 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 - 100 MB class files: no-wrap large-file mode, measured 440 ms open / 226 ms save,
   210 MB RSS after save (`docs/PERF.md`)
 
-Not there yet: tab context menu, dark native file dialogs.
+Not there yet: dark native file dialogs and the remaining M4 polish.
 
 ## Status
 

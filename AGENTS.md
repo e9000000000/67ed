@@ -6,17 +6,17 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 
 ## Current state
 
-M0 is complete and M1 is in progress. The app builds as a single x64 executable
-(~1.41 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
+M0–M3 are complete and M4 is in progress. The app builds as a single x64 executable
+(~1.42 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
 numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
 Shift+F3, match case, whole word, regex, replace all), go-to-line (Ctrl+G),
-insert/overwrite (Insert), tab drag-reorder, a recent-files menu,
+insert/overwrite (Insert), tab drag-reorder and context menu, a recent-files menu,
 external-change watching/reload, and dirty-buffer crash recovery. 100 MB files are
 measured in `docs/PERF.md`.
 
-Known gaps: tab context menu, dark native file dialogs.
+Known gaps: dark native file dialogs and final M4 polish.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
 
 ## Build

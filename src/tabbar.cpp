@@ -431,6 +431,18 @@ LRESULT TabBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         }
         return 0;
     }
+    case WM_RBUTTONUP: {
+        const int x = GET_X_LPARAM(lParam);
+        const int y = GET_Y_LPARAM(lParam);
+        computeLayout();
+        const int index = hitTest(x, y);
+        if (index >= 0) {
+            notify(tabbar_events::kSelect, static_cast<WPARAM>(index));
+            notify(tabbar_events::kContext, static_cast<WPARAM>(index),
+                   static_cast<LPARAM>(MAKELPARAM(x, y)));
+        }
+        return 0;
+    }
     case WM_MOUSEWHEEL: {
         const int delta = GET_WHEEL_DELTA_WPARAM(wParam);
         scrollX_ -= (delta / WHEEL_DELTA) * theme::Scale(80, dpi_);

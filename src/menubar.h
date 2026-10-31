@@ -42,6 +42,7 @@ public:
     int preferredHeight(HWND reference) const;
     void setState(const MenuState& state);
     void openMenu(int index);
+    void showContextMenu(POINT screenPoint, std::vector<MenuItem> items);
     void closeMenu();
     bool isOpen() const { return openMenu_ >= 0; }
     void invalidate();
@@ -59,6 +60,8 @@ private:
     void showPopup(int index);
     void hidePopup();
     void notify(UINT id);
+    const std::vector<MenuItem>& activeItems() const;
+    bool hasActivePopup() const;
     int titleFromPoint(int x, int y) const;
     int itemFromPoint(int x, int y) const;
     int popupItemHeight() const;
@@ -75,6 +78,8 @@ private:
     UINT dpi_ = 96;
     MenuState state_;
     std::vector<MenuDef> menus_;
+    std::vector<MenuItem> contextItems_;
+    bool contextMode_ = false;
     std::vector<RECT> titleRects_;
     int hoverTitle_ = -1;
     int openMenu_ = -1;
