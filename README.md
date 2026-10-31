@@ -28,6 +28,7 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 - Word wrap, line numbers, EOL conversion, zoom, font dialog
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
+- Go to line: Ctrl+G
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
@@ -35,8 +36,7 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 - 100 MB class files: no-wrap large-file mode, measured 440 ms open / 226 ms save,
   210 MB RSS after save (`docs/PERF.md`)
 
-Not there yet: go-to-line, tab drag-reorder, context menus, dark native file
-dialogs.
+Not there yet: tab drag-reorder, context menus, dark native file dialogs.
 
 ## Status
 

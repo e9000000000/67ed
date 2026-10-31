@@ -17,6 +17,7 @@
 #include "editor.h"
 #include "fileio.h"
 #include "json.h"
+#include "linenav.h"
 #include "search.h"
 #include "theme.h"
 #include "util.h"
@@ -133,6 +134,9 @@ bool App::create(const std::vector<std::wstring>& initialPaths) {
     if (!findBar_.create(hwnd_, instance_)) {
         return false;
     }
+    if (!lineBar_.create(hwnd_, instance_)) {
+        return false;
+    }
 
     bool placed = false;
     if (haveSession && session.hasWindow) {
@@ -238,6 +242,7 @@ void App::createAccelerators() {
         {FVIRTKEY | FCONTROL | FSHIFT, VK_TAB, kCmdPrevTab},
         {FVIRTKEY | FCONTROL, 'F', kCmdFind},
         {FVIRTKEY | FCONTROL, 'H', kCmdReplace},
+        {FVIRTKEY | FCONTROL, 'G', kCmdGoToLine},
         {FVIRTKEY, VK_F3, kCmdFindNext},
         {FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev},
         {FVIRTKEY | FALT, 'F', kCmdMenuFile},
@@ -305,6 +310,9 @@ void App::onCommand(UINT id) {
         break;
     case kCmdReplace:
         showFind(true);
+        break;
+    case kCmdGoToLine:
+        showGoToLine();
         break;
     case kCmdFindNext:
         findNext(true);
@@ -589,15 +597,19 @@ void App::layout() {
     const int tabHeight = tabBar_.preferredHeight(hwnd_);
     const int statusHeight = statusBar_.preferredHeight(hwnd_);
     const int findHeight = findBar_.isVisible() ? findBar_.preferredHeight(hwnd_) : 0;
+    const int lineHeight = lineBar_.isVisible() ? lineBar_.preferredHeight(hwnd_) : 0;
     const int tabTop = menuHeight;
     const int editorTop = tabTop + tabHeight;
-    const int editorHeight = std::max(0, height - editorTop - statusHeight - findHeight);
+    const int editorHeight = std::max(0, height - editorTop - statusHeight - findHeight - lineHeight);
 
     menuBar_.layout(0, 0, width, menuHeight);
     tabBar_.layout(0, tabTop, width, tabHeight);
     statusBar_.layout(0, height - statusHeight, width, statusHeight);
     if (findBar_.isVisible()) {
         findBar_.layout(0, height - statusHeight - findHeight, width, findHeight);
+    }
+    if (lineBar_.isVisible()) {
+        lineBar_.layout(0, height - statusHeight - lineHeight, width, lineHeight);
     }
 
     for (size_t i = 0; i < tabs_.size(); ++i) {
@@ -1161,6 +1173,9 @@ void App::showFind(bool replace) {
     if (!tab || !tab->loaded) {
         return;
     }
+    if (lineBar_.isVisible()) {
+        lineBar_.hide();
+    }
     if (!findBar_.isVisible()) {
         const std::string selected = selectedText();
         if (!selected.empty() && selected.find('\n') == std::string::npos &&
@@ -1185,6 +1200,50 @@ void App::hideFind() {
     if (Tab* tab = activeTab()) {
         editor::Focus(tab->sci);
     }
+}
+
+void App::showGoToLine() {
+    Tab* tab = activeTab();
+    if (!tab || !tab->loaded || !tab->sci) {
+        return;
+    }
+    if (findBar_.isVisible()) {
+        findBar_.hide();
+    }
+    const long long current = static_cast<long long>(SendMessageW(tab->sci, SCI_LINEFROMPOSITION,
+                                        static_cast<WPARAM>(SendMessageW(tab->sci, SCI_GETCURRENTPOS, 0, 0)), 0)) + 1;
+    lineBar_.setValue(std::to_wstring(current));
+    lineBar_.show();
+    lineBar_.focusEdit();
+    layout();
+}
+
+void App::hideGoToLine() {
+    if (!lineBar_.isVisible()) {
+        return;
+    }
+    lineBar_.hide();
+    layout();
+    if (Tab* tab = activeTab()) {
+        editor::Focus(tab->sci);
+    }
+}
+
+void App::goToLine() {
+    Tab* tab = activeTab();
+    if (!tab || !tab->loaded || !tab->sci) {
+        return;
+    }
+    long long line = 0;
+    if (!linenav::ParseLine(lineBar_.value(), line)) {
+        MessageBeep(MB_ICONASTERISK);
+        return;
+    }
+    const long long target = linenav::ClampLine(tab->sci, line);
+    SendMessageW(tab->sci, SCI_GOTOLINE, static_cast<WPARAM>(target - 1), 0);
+    SendMessageW(tab->sci, SCI_SCROLLCARET, 0, 0);
+    hideGoToLine();
+    updateStatus();
 }
 
 void App::findNext(bool forward) {
@@ -1630,6 +1689,12 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         return 0;
     case findbar_events::kReplaceAll:
         replaceAll();
+        return 0;
+    case linebar_events::kGo:
+        goToLine();
+        return 0;
+    case linebar_events::kClose:
+        hideGoToLine();
         return 0;
     case WM_CLOSE:
         if (closing_) {

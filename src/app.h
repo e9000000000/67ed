@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "findbar.h"
+#include "linebar.h"
 #include "menubar.h"
 #include "session.h"
 #include "settings.h"
@@ -98,6 +99,9 @@ private:
     void showFontDialog();
     void showFind(bool replace = false);
     void hideFind();
+    void showGoToLine();
+    void hideGoToLine();
+    void goToLine();
     void findNext(bool forward);
     void replaceCurrent();
     void replaceAll();
@@ -123,6 +127,7 @@ private:
     TabBar tabBar_;
     StatusBar statusBar_;
     FindBar findBar_;
+    LineBar lineBar_;
     std::vector<std::unique_ptr<Tab>> tabs_;
     int active_ = -1;
     int untitledCounter_ = 1;

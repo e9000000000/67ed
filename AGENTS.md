@@ -7,14 +7,14 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 ## Current state
 
 M0 is complete and M1 is in progress. The app builds as a single x64 executable
-(~1.38 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
+(~1.39 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
 numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
-Shift+F3, match case, whole word, regex, replace all), and dirty-buffer crash
-recovery. 100 MB files are measured in `docs/PERF.md`.
+Shift+F3, match case, whole word, regex, replace all), go-to-line (Ctrl+G), and
+dirty-buffer crash recovery. 100 MB files are measured in `docs/PERF.md`.
 
-Known gaps: go-to-line, tab drag-reorder/context menu, dark native file dialogs.
+Known gaps: tab drag-reorder/context menu, dark native file dialogs.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
 
 ## Build
@@ -53,7 +53,9 @@ src/
   menubar.*         custom dark menu bar and owner-drawn popups
   tabbar.*          custom dark tab strip
   statusbar.*       custom status bar
-  findbar.*         dark find bar (find next/previous, match case, whole word)
+  findbar.*         dark find bar (find/replace, match case, whole word, regex)
+  linebar.*         dark go-to-line bar
+  linenav.*         line-number parsing and clamping
   editor.*          per-tab Scintilla wrapper, theme, view state, chunked save
   headless.*        --selftest / --bench / --make-fixture, hidden host only
   fileio.*          file read/write, encoding/EOL detection, atomic save
@@ -134,8 +136,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
 ```
 
 - `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
-  set/get/find/undo, search/replace (plain and regex), and chunked save. Expect
-  `summary passed=90 failed=0`.
+  set/get/find/undo, search/replace (plain and regex), line navigation, and
+  chunked save. Expect `summary passed=97 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
 - All three accept `--log <path>`.

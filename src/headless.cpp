@@ -21,6 +21,7 @@
 #include "editor.h"
 #include "fileio.h"
 #include "json.h"
+#include "linenav.h"
 #include "search.h"
 #include "session.h"
 #include "settings.h"
@@ -399,6 +400,18 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     editor::SetText(sci, "keep");
     log.check(search::ReplaceAll(sci, "[", "x", searchOptions) == 0, "search.regex.invalid");
     log.check(editor::GetText(sci) == "keep", "search.regex.invalid.text");
+
+    editor::SetText(sci, "one\ntwo\nthree\nfour");
+    log.check(linenav::ClampLine(sci, 0) == 1, "linenav.clamp.low");
+    log.check(linenav::ClampLine(sci, 3) == 3, "linenav.clamp.mid");
+    log.check(linenav::ClampLine(sci, 999) == 4, "linenav.clamp.high");
+    long long parsedLine = 0;
+    log.check(linenav::ParseLine(L" 3 ", parsedLine) && parsedLine == 3, "linenav.parse");
+    log.check(!linenav::ParseLine(L"3x", parsedLine), "linenav.parse.invalid");
+    log.check(!linenav::ParseLine(L"", parsedLine), "linenav.parse.empty");
+    SendMessageW(sci, SCI_GOTOLINE, 2, 0);
+    log.check(static_cast<long long>(SendMessageW(sci, SCI_GETCURRENTPOS, 0, 0)) == 8,
+              "linenav.gotoline");
 
     // Chunked save crosses the 4 MB chunk boundary; verify the exact bytes.
     std::string large;
