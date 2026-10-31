@@ -135,6 +135,19 @@ std::wstring DirectoryOf(const std::wstring& path) {
     return path.substr(0, pos);
 }
 
+std::wstring CompactPathLabel(const std::wstring& path) {
+    std::wstring label = FileNameOf(path);
+    const std::wstring directory = DirectoryOf(path);
+    if (directory != L"." && directory.size() > 3) {
+        const std::wstring parent = FileNameOf(directory);
+        if (!parent.empty()) {
+            label += L"  \u2014  ";
+            label += parent;
+        }
+    }
+    return label;
+}
+
 bool PathsEqual(const std::wstring& a, const std::wstring& b) {
     return CompareStringOrdinal(a.c_str(), static_cast<int>(a.size()), b.c_str(), static_cast<int>(b.size()), TRUE) == CSTR_EQUAL;
 }

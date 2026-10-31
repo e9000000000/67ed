@@ -136,7 +136,7 @@ void MenuBar::rebuildMenus() {
         file.items.push_back(MakeSeparator());
         const size_t count = std::min<size_t>(state_.recent.size(), 8);
         for (size_t i = 0; i < count; ++i) {
-            std::wstring label = FileNameOf(state_.recent[i]);
+            std::wstring label = CompactPathLabel(state_.recent[i]);
             if (label.empty()) {
                 label = state_.recent[i];
             }

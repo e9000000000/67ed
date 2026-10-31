@@ -19,6 +19,7 @@ bool EnsureDirectory(const std::wstring& path);
 std::wstring FullPath(const std::wstring& path);
 std::wstring FileNameOf(const std::wstring& path);
 std::wstring DirectoryOf(const std::wstring& path);
+std::wstring CompactPathLabel(const std::wstring& path);
 bool PathsEqual(const std::wstring& a, const std::wstring& b);
 bool FileExists(const std::wstring& path);
 

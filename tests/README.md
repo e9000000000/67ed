@@ -22,8 +22,8 @@ and the search/replace engine (current, all, case, whole word, regex with captur
 groups, expanding and empty replacements), go-to-line parsing/clamping,
 insert/overwrite, file-change stamps, recent-file ordering, tab-reorder
 arithmetic, read-only rejection, Unicode surrogate pairs, empty files,
-corrupt-session backup, and crash-log writing. Expected final line:
-`summary passed=156 failed=0`.
+corrupt-session backup, recent-label formatting, and crash-log writing. Expected
+final line: `summary passed=159 failed=0`.
 
 ## Headless bench
 

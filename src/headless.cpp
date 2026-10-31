@@ -621,6 +621,10 @@ void TestSettings(TestLog& log) {
     }
     log.check(settings.recent.size() == 10, "recent.limit");
     log.check(FileNameOf(settings.recent[0]) == L"f14.txt", "recent.newest");
+    log.check(CompactPathLabel(L"C:\\Users\\e\\Documents\\file.txt") ==
+              L"file.txt  \u2014  Documents", "recent.label");
+    log.check(CompactPathLabel(L"C:\\file.txt") == L"file.txt", "recent.label.root");
+    log.check(CompactPathLabel(L"file.txt") == L"file.txt", "recent.label.relative");
 }
 
 void TestTabOrder(TestLog& log) {
