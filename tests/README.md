@@ -19,8 +19,9 @@ Covers JSON parse/dump, UTF-8/UTF-16LE/BE/ANSI round-trips, BOM and EOL handling
 session serialization, Scintilla set/get/find/backward-find/undo, and the
 search/replace engine (current, all, case, whole word, regex with capture groups,
 expanding and empty replacements), go-to-line parsing/clamping,
-insert/overwrite, file-change stamps, recent-file ordering, and tab-reorder
-arithmetic. Expected final line: `summary passed=118 failed=0`.
+insert/overwrite, file-change stamps, recent-file ordering, tab-reorder
+arithmetic, read-only rejection, and crash-log writing. Expected final line:
+`summary passed=124 failed=0`.
 
 ## Headless bench
 
@@ -74,6 +75,9 @@ reloads from disk.
 Tabs: drag a tab left or right to reorder it; the new order is saved in the
 session. Right-click a tab for Close, Close Others, Close All, Copy Path, and
 Reload. File > Open Recent lists up to eight files.
+
+Read-only files load with the read-only flag and refuse to save. Unhandled
+exceptions append to `%APPDATA%\67ed\logs\crash.log`.
 
 Recovery: open a file, type a character, wait about 7 seconds for the snapshot,
 then kill the process (Task Manager or `Stop-Process -Force`). Relaunch with no

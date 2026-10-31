@@ -8,6 +8,7 @@
 
 #include "Scintilla.h"
 #include "app.h"
+#include "crashlog.h"
 #include "headless.h"
 #include "util.h"
 
@@ -133,6 +134,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     EnableDarkModeForApp();
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    crashlog::Install();
 
     if (!Scintilla_RegisterClasses(instance)) {
         Report(L"Cannot register the Scintilla window classes.");

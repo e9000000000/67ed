@@ -30,7 +30,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1 `
 
 | Metric | Result |
 |---|---|
-| EXE size | 1,484,288 bytes (1.42 MiB) |
+| EXE size | 1,489,408 bytes (1.42 MiB) |
 | Read + decode | 264 ms |
 | Load into Scintilla (`SCI_ADDTEXT`) | 163 ms |
 | Open total (read + load) | 440 ms |
@@ -44,6 +44,18 @@ Save now streams 4 MB chunks from Scintilla directly to the temp file instead of
 copying the whole buffer. RSS after save previously rose to ~309 MB; it now stays
 flat at ~210 MB, inside the 300 MB budget.
 
+## 20 MB single line (2026-11-01)
+
+| Metric | Result |
+|---|---|
+| Size | 20,971,520 bytes (20 MiB), 1 line |
+| Read + decode | 393 ms |
+| Load into Scintilla | 48 ms |
+| Open total | 939 ms |
+| RSS after open | 53 MB |
+| Save | 104 ms |
+| RSS after save | 53 MB |
+
 ## Earlier UI run (2026-10-31)
 
 Wall-clock from `Start-Process` through polling for the window title: ~685 ms to
@@ -54,6 +66,6 @@ overhead; the headless bench above is the accurate internal measure.
 
 - Window visible time (target < 100 ms).
 - Second-instance handoff latency.
-- A 20 MB single line and a 100 MB single line with wrap disabled.
+- A 100 MB single line with wrap disabled.
 - Typing latency under large-file load.
 - Restart/session restore time for many tabs.

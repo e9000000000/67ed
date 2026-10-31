@@ -30,8 +30,9 @@
   matrix, drag-and-drop, recent files, read-only/binary/2 GB guards, external-change
   watching (auto-reload clean tabs, conflict marker for dirty tabs), and manual
   Reload from Disk (Ctrl+R).
-- **M4 in progress.** Polish remains: dark native file dialogs, crash logging,
-  optional file associations, final DPI pass, and startup-time measurement.
+- **M4 in progress.** Crash logging and the bench/test suite are done. Remaining:
+  dark native file dialogs, optional file associations, final DPI pass, and
+  visible-window startup measurement.
 
 Latest measured 98.4 MiB file: 440 ms open, 226 ms chunked save, 210 MB RSS after
 save. Release EXE 1.38 MiB. See `docs/PERF.md`.

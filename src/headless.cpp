@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "Scintilla.h"
+#include "crashlog.h"
 #include "editor.h"
 #include "fileio.h"
 #include "filewatch.h"
@@ -265,6 +266,17 @@ void TestFileIo(TestLog& log, const fs::path& dir) {
     LoadedFile missingFile;
     log.check(!LoadFile(missing.wstring(), missingFile, error), "fileio.missing.rejected");
 
+    const fs::path readonlyPath = dir / "readonly.txt";
+    log.check(WriteBytes(readonlyPath, "read only"), "fileio.readonly.write");
+    SetFileAttributesW(readonlyPath.wstring().c_str(), FILE_ATTRIBUTE_READONLY);
+    LoadedFile readonlyFile;
+    log.check(LoadFile(readonlyPath.wstring(), readonlyFile, error), "fileio.readonly.load",
+              WideToUtf8(error));
+    log.check(readonlyFile.readOnly, "fileio.readonly.detected");
+    log.check(!SaveFile(readonlyPath.wstring(), readonlyFile.text, Encoding::Utf8, false, error),
+              "fileio.readonly.save.rejected");
+    SetFileAttributesW(readonlyPath.wstring().c_str(), FILE_ATTRIBUTE_NORMAL);
+
     const fs::path watchPath = dir / "watch.txt";
     log.check(WriteBytes(watchPath, "one"), "filewatch.write");
     const filewatch::Stamp firstStamp = filewatch::Read(watchPath.wstring());
@@ -275,6 +287,12 @@ void TestFileIo(TestLog& log, const fs::path& dir) {
     log.check(!filewatch::Same(firstStamp, filewatch::Read(watchPath.wstring())),
               "filewatch.changed");
     log.check(!filewatch::Read(missing.wstring()).valid, "filewatch.missing");
+
+    const fs::path crashPath = dir / "crash.log";
+    log.check(crashlog::WriteLogLine(crashPath.wstring(), L"crash test line\r\n"),
+              "crashlog.write");
+    log.check(ReadBytes(crashPath).find("crash test line") != std::string::npos,
+              "crashlog.content");
 }
 
 void TestSession(TestLog& log, const fs::path& dir) {

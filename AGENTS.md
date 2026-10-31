@@ -13,8 +13,8 @@ handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
 numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
 Shift+F3, match case, whole word, regex, replace all), go-to-line (Ctrl+G),
 insert/overwrite (Insert), tab drag-reorder and context menu, a recent-files menu,
-external-change watching/reload, and dirty-buffer crash recovery. 100 MB files are
-measured in `docs/PERF.md`.
+external-change watching/reload, crash logging, and dirty-buffer crash recovery.
+100 MB files are measured in `docs/PERF.md`.
 
 Known gaps: dark native file dialogs and final M4 polish.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
@@ -62,6 +62,7 @@ src/
   headless.*        --selftest / --bench / --make-fixture, hidden host only
   fileio.*          file read/write, encoding/EOL detection, atomic save
   filewatch.*       external file-change stamps
+  crashlog.*        unhandled-exception log
   session.*         session/settings persistence, recovery snapshots
   json.*            small JSON value/parser/serializer
   theme.h           palette and UI metrics
@@ -140,8 +141,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
 
 - `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
   set/get/find/undo, search/replace (plain and regex), line navigation,
-  insert/overwrite, file-change stamps, recent-file ordering, tab reordering, and
-  chunked save. Expect `summary passed=118 failed=0`.
+  insert/overwrite, file-change stamps, recent-file ordering, tab reordering,
+  read-only handling, crash-log writing, and chunked save. Expect
+  `summary passed=124 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
 - All three accept `--log <path>`.

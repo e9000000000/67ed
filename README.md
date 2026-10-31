@@ -34,6 +34,7 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 - Insert/overwrite: Insert; status shows `OVR`
 - External changes: clean tabs reload automatically; dirty tabs show
   `[disk changed]` in the title; Ctrl+R reloads from disk
+- Crash log: unhandled exceptions append to `%APPDATA%\67ed\logs\crash.log`
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
