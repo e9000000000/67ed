@@ -17,6 +17,7 @@
 #include "editor.h"
 #include "fileio.h"
 #include "json.h"
+#include "search.h"
 #include "theme.h"
 #include "util.h"
 
@@ -236,6 +237,7 @@ void App::createAccelerators() {
         {FVIRTKEY | FCONTROL, VK_TAB, kCmdNextTab},
         {FVIRTKEY | FCONTROL | FSHIFT, VK_TAB, kCmdPrevTab},
         {FVIRTKEY | FCONTROL, 'F', kCmdFind},
+        {FVIRTKEY | FCONTROL, 'H', kCmdReplace},
         {FVIRTKEY, VK_F3, kCmdFindNext},
         {FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev},
         {FVIRTKEY | FALT, 'F', kCmdMenuFile},
@@ -299,7 +301,10 @@ void App::onCommand(UINT id) {
         insertTimeDate();
         break;
     case kCmdFind:
-        showFind();
+        showFind(false);
+        break;
+    case kCmdReplace:
+        showFind(true);
         break;
     case kCmdFindNext:
         findNext(true);
@@ -1151,7 +1156,7 @@ std::string App::selectedText() {
     return text;
 }
 
-void App::showFind() {
+void App::showFind(bool replace) {
     Tab* tab = activeTab();
     if (!tab || !tab->loaded) {
         return;
@@ -1162,7 +1167,10 @@ void App::showFind() {
             selected.find('\r') == std::string::npos) {
             findBar_.setQuery(Utf8ToWide(selected));
         }
-        findBar_.show();
+        findBar_.show(replace);
+        layout();
+    } else if (findBar_.replaceMode() != replace) {
+        findBar_.show(replace);
         layout();
     }
     findBar_.focusEdit();
@@ -1185,7 +1193,7 @@ void App::findNext(bool forward) {
         return;
     }
     if (!findBar_.isVisible()) {
-        showFind();
+        showFind(false);
         return;
     }
     const std::wstring wideQuery = findBar_.query();
@@ -1198,21 +1206,13 @@ void App::findNext(bool forward) {
         return;
     }
 
-    int flags = 0;
-    if (findBar_.matchCase()) {
-        flags |= SCFIND_MATCHCASE;
-    }
-    if (findBar_.wholeWord()) {
-        flags |= SCFIND_WHOLEWORD;
-    }
-    SendMessageW(tab->sci, SCI_SETSEARCHFLAGS, static_cast<WPARAM>(flags), 0);
+    search::Options options;
+    options.matchCase = findBar_.matchCase();
+    options.wholeWord = findBar_.wholeWord();
+    search::SetOptions(tab->sci, options);
 
     const auto search = [&](long long from, long long to) -> long long {
-        SendMessageW(tab->sci, SCI_SETTARGETSTART, static_cast<WPARAM>(from), 0);
-        SendMessageW(tab->sci, SCI_SETTARGETEND, static_cast<WPARAM>(to), 0);
-        return static_cast<long long>(SendMessageW(tab->sci, SCI_SEARCHINTARGET,
-                                                   static_cast<WPARAM>(query.size()),
-                                                   reinterpret_cast<LPARAM>(query.c_str())));
+        return search::FindInRange(tab->sci, query, from, to);
     };
 
     const long long documentLength = static_cast<long long>(SendMessageW(tab->sci, SCI_GETLENGTH, 0, 0));
@@ -1242,6 +1242,74 @@ void App::findNext(bool forward) {
 
     SendMessageW(tab->sci, SCI_SETSEL, static_cast<WPARAM>(found),
                  static_cast<LPARAM>(found + queryLength));
+    SendMessageW(tab->sci, SCI_SCROLLCARET, 0, 0);
+    updateStatus();
+}
+
+void App::replaceCurrent() {
+    Tab* tab = activeTab();
+    if (!tab || !tab->loaded || !tab->sci) {
+        return;
+    }
+    if (!findBar_.isVisible()) {
+        showFind(true);
+        return;
+    }
+    const std::wstring wideQuery = findBar_.query();
+    if (wideQuery.empty()) {
+        MessageBeep(MB_ICONASTERISK);
+        return;
+    }
+    const std::string query = WideToUtf8(wideQuery);
+    const std::string replacement = WideToUtf8(findBar_.replacement());
+    if (query.empty()) {
+        return;
+    }
+
+    search::Options options;
+    options.matchCase = findBar_.matchCase();
+    options.wholeWord = findBar_.wholeWord();
+    search::SetOptions(tab->sci, options);
+
+    if (search::SelectionMatches(tab->sci, query)) {
+        search::ReplaceSelection(tab->sci, replacement);
+    }
+    findNext(true);
+}
+
+void App::replaceAll() {
+    Tab* tab = activeTab();
+    if (!tab || !tab->loaded || !tab->sci) {
+        return;
+    }
+    if (!findBar_.isVisible()) {
+        showFind(true);
+        return;
+    }
+    const std::wstring wideQuery = findBar_.query();
+    if (wideQuery.empty()) {
+        MessageBeep(MB_ICONASTERISK);
+        return;
+    }
+    const std::string query = WideToUtf8(wideQuery);
+    const std::string replacement = WideToUtf8(findBar_.replacement());
+    if (query.empty()) {
+        return;
+    }
+
+    search::Options options;
+    options.matchCase = findBar_.matchCase();
+    options.wholeWord = findBar_.wholeWord();
+    search::SetOptions(tab->sci, options);
+
+    HCURSOR oldCursor = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
+    const long long count = search::ReplaceAll(tab->sci, query, replacement);
+    SetCursor(oldCursor);
+
+    if (count == 0) {
+        MessageBeep(MB_ICONASTERISK);
+        return;
+    }
     SendMessageW(tab->sci, SCI_SCROLLCARET, 0, 0);
     updateStatus();
 }
@@ -1553,6 +1621,12 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         return 0;
     case findbar_events::kClose:
         hideFind();
+        return 0;
+    case findbar_events::kReplace:
+        replaceCurrent();
+        return 0;
+    case findbar_events::kReplaceAll:
+        replaceAll();
         return 0;
     case WM_CLOSE:
         if (closing_) {

@@ -21,6 +21,7 @@
 #include "editor.h"
 #include "fileio.h"
 #include "json.h"
+#include "search.h"
 #include "session.h"
 #include "settings.h"
 #include "util.h"
@@ -342,6 +343,44 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     log.check(editor::GetText(sci) == "abcd", "scintilla.edit");
     SendMessageW(sci, SCI_UNDO, 0, 0);
     log.check(editor::GetText(sci) == "abc", "scintilla.undo");
+
+    // Search and replace engine (the find bar calls into this).
+    editor::SetText(sci, "alpha beta alpha gamma alpha");
+    const long long searchLength = static_cast<long long>(SendMessageW(sci, SCI_GETLENGTH, 0, 0));
+    log.check(search::FindInRange(sci, "alpha", 0, searchLength) == 0, "search.find.first");
+    log.check(search::FindInRange(sci, "alpha", 6, searchLength) == 11, "search.find.next");
+    log.check(search::FindInRange(sci, "alpha", 10, 0) == 0, "search.find.backward");
+
+    SendMessageW(sci, SCI_SETSEL, 0, 5);
+    search::Options searchOptions;
+    search::SetOptions(sci, searchOptions);
+    log.check(search::SelectionMatches(sci, "alpha"), "search.selection.match");
+    search::ReplaceSelection(sci, "z");
+    log.check(editor::GetText(sci) == "z beta alpha gamma alpha", "search.replace.current");
+
+    log.check(search::ReplaceAll(sci, "alpha", "Q") == 2, "search.replaceall.count");
+    log.check(editor::GetText(sci) == "z beta Q gamma Q", "search.replaceall.text");
+
+    editor::SetText(sci, "Alpha alpha ALPHA");
+    searchOptions.matchCase = true;
+    search::SetOptions(sci, searchOptions);
+    log.check(search::ReplaceAll(sci, "alpha", "x") == 1, "search.replaceall.case");
+
+    editor::SetText(sci, "cat scatter cat");
+    searchOptions.matchCase = false;
+    searchOptions.wholeWord = true;
+    search::SetOptions(sci, searchOptions);
+    log.check(search::ReplaceAll(sci, "cat", "dog") == 2, "search.replaceall.wholeword");
+
+    editor::SetText(sci, "a a a");
+    searchOptions.wholeWord = false;
+    search::SetOptions(sci, searchOptions);
+    log.check(search::ReplaceAll(sci, "a", "aa") == 3, "search.replaceall.expanding");
+    log.check(editor::GetText(sci) == "aa aa aa", "search.replaceall.expanding.text");
+
+    editor::SetText(sci, "ab ab");
+    log.check(search::ReplaceAll(sci, "ab", "") == 2, "search.replaceall.empty");
+    log.check(editor::GetText(sci) == " ", "search.replaceall.empty.text");
 
     // Chunked save crosses the 4 MB chunk boundary; verify the exact bytes.
     std::string large;

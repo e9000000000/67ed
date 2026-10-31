@@ -19,18 +19,19 @@
   custom dark scrollbars, lazy session restore.
 - **M1 in progress.** Tabs, lazy loading, session persistence, dirty prompts,
   duplicate-path focusing, close/reopen restore, dirty-buffer recovery snapshots.
-  Headless `--selftest` (70 checks), `--bench`, and `--make-fixture` are in place.
+  Headless `--selftest` (83 checks), `--bench`, and `--make-fixture` are in place.
   Still missing: tab drag-reorder, tab context menu.
 - **M2 in progress.** Custom dark menu bar and popups, font dialog, wrap, line
-  numbers, EOL, zoom, and the find bar (Ctrl+F, F3, Shift+F3, match case, whole
-  word). Still missing: replacement, regex, go-to-line, insert/overwrite.
+  numbers, EOL, zoom, and the find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3,
+  match case, whole word, replace, replace all). Still missing: regex,
+  go-to-line, insert/overwrite.
 - **M3 in progress.** Dirty snapshots and recovery restore are done, as are the
   encoding matrix, drag-and-drop, recent files, and read-only/binary/2 GB guards.
   Still missing: file watching and disk-conflict handling.
 - **M4 pending.**
 
-Latest measured 98.4 MiB file: 465 ms open, 303 ms chunked save, 210 MB RSS after
-save. Release EXE 1.37 MiB. See `docs/PERF.md`.
+Latest measured 98.4 MiB file: 440 ms open, 226 ms chunked save, 210 MB RSS after
+save. Release EXE 1.38 MiB. See `docs/PERF.md`.
 
 ## Target numbers
 

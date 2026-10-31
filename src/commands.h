@@ -33,6 +33,7 @@ enum : unsigned int {
     kCmdMenuView,
     kCmdMenuHelp,
     kCmdFind,
+    kCmdReplace,
     kCmdFindNext,
     kCmdFindPrev,
 };

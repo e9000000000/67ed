@@ -30,14 +30,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1 `
 
 | Metric | Result |
 |---|---|
-| EXE size | 1,441,280 bytes (1.37 MiB) |
-| Read + decode | 277 ms |
-| Load into Scintilla (`SCI_ADDTEXT`) | 176 ms |
-| Open total (read + load) | 465 ms |
+| EXE size | 1,448,960 bytes (1.38 MiB) |
+| Read + decode | 264 ms |
+| Load into Scintilla (`SCI_ADDTEXT`) | 163 ms |
+| Open total (read + load) | 440 ms |
 | RSS after open | 210 MB |
-| Find (`SCI_SEARCHINTARGET`, first hit) | 0.2 ms |
-| Scroll to last line | 0.1 ms |
-| Save 98.4 MiB (chunked) | 303 ms |
+| Find (`SCI_SEARCHINTARGET`, first hit) | 0.1 ms |
+| Scroll to last line | 0.0 ms |
+| Save 98.4 MiB (chunked) | 226 ms |
 | RSS after save | 210 MB |
 
 Save now streams 4 MB chunks from Scintilla directly to the temp file instead of

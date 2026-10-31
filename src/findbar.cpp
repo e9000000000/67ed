@@ -18,8 +18,31 @@ enum HotSpot {
     kHotPrev,
     kHotNext,
     kHotClose,
+    kHotReplace,
+    kHotReplaceAll,
     kHotNone = -1,
 };
+
+std::wstring ControlText(HWND edit) {
+    if (!edit) {
+        return {};
+    }
+    const int length = GetWindowTextLengthW(edit);
+    if (length <= 0) {
+        return {};
+    }
+    std::wstring text(static_cast<size_t>(length) + 1, L'\0');
+    GetWindowTextW(edit, text.data(), length + 1);
+    text.resize(static_cast<size_t>(length));
+    return text;
+}
+
+void SetControlText(HWND edit, const std::wstring& text) {
+    if (edit) {
+        SetWindowTextW(edit, text.c_str());
+        SendMessageW(edit, EM_SETSEL, 0, -1);
+    }
+}
 
 void Fill(HDC dc, const RECT& rect, COLORREF color) {
     HBRUSH brush = CreateSolidBrush(color);
@@ -67,6 +90,16 @@ bool FindBar::create(HWND parent, HINSTANCE instance) {
     }
     SendMessageW(edit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
     SetWindowSubclass(edit_, EditProc, 1, reinterpret_cast<DWORD_PTR>(this));
+
+    replaceEdit_ = CreateWindowExW(0, L"EDIT", L"",
+                                   WS_CHILD | ES_AUTOHSCROLL | ES_LEFT,
+                                   0, 0, 0, 0, hwnd_, reinterpret_cast<HMENU>(2), instance, nullptr);
+    if (!replaceEdit_) {
+        return false;
+    }
+    SendMessageW(replaceEdit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
+    SetWindowSubclass(replaceEdit_, EditProc, 2, reinterpret_cast<DWORD_PTR>(this));
+
     ShowWindow(hwnd_, SW_HIDE);
     return true;
 }
@@ -86,10 +119,13 @@ void FindBar::ensureFont() {
     if (edit_) {
         SendMessageW(edit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
     }
+    if (replaceEdit_) {
+        SendMessageW(replaceEdit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
+    }
 }
 
 int FindBar::preferredHeight(HWND reference) const {
-    return theme::Scale(40, DpiOfWindow(reference));
+    return theme::Scale(replaceMode_ ? 72 : 40, DpiOfWindow(reference));
 }
 
 void FindBar::layout(int x, int y, int width, int height) {
@@ -116,7 +152,14 @@ void FindBar::computeRects() {
     const int button = theme::Scale(24, dpi_);
     const int caseWidth = theme::Scale(32, dpi_);
     const int closeWidth = theme::Scale(26, dpi_);
-    const int y = (height - button) / 2;
+    const int labelWidth = theme::Scale(38, dpi_);
+    const int rowGap = theme::Scale(6, dpi_);
+
+    int y = (height - button) / 2;
+    if (replaceMode_) {
+        const int content = button * 2 + rowGap;
+        y = std::max(pad, (height - content) / 2);
+    }
 
     closeRect_ = {width - pad - closeWidth, y, width - pad, y + button};
     nextRect_ = {closeRect_.left - gap - button, y, closeRect_.left - gap, y + button};
@@ -124,7 +167,6 @@ void FindBar::computeRects() {
     wordRect_ = {prevRect_.left - gap - button, y, prevRect_.left - gap, y + button};
     caseRect_ = {wordRect_.left - gap - caseWidth, y, wordRect_.left - gap, y + button};
 
-    const int labelWidth = theme::Scale(38, dpi_);
     editRect_ = {pad + labelWidth, y, caseRect_.left - gap, y + button};
     if (editRect_.right < editRect_.left + theme::Scale(40, dpi_)) {
         editRect_.right = editRect_.left + theme::Scale(40, dpi_);
@@ -136,6 +178,29 @@ void FindBar::computeRects() {
         SetWindowPos(edit_, nullptr, editRect_.left + 1, editRect_.top + 1,
                      editWidth, editHeight, SWP_NOZORDER | SWP_NOACTIVATE);
     }
+
+    if (replaceMode_) {
+        const int y2 = y + button + rowGap;
+        const int allWidth = theme::Scale(46, dpi_);
+        const int replaceWidth = theme::Scale(64, dpi_);
+        replaceAllRect_ = {width - pad - allWidth, y2, width - pad, y2 + button};
+        replaceRect_ = {replaceAllRect_.left - gap - replaceWidth, y2,
+                        replaceAllRect_.left - gap, y2 + button};
+        replaceEditRect_ = {pad + labelWidth, y2, replaceRect_.left - gap, y2 + button};
+        if (replaceEditRect_.right < replaceEditRect_.left + theme::Scale(40, dpi_)) {
+            replaceEditRect_.right = replaceEditRect_.left + theme::Scale(40, dpi_);
+        }
+        if (replaceEdit_) {
+            const int editWidth = std::max(1, static_cast<int>(replaceEditRect_.right - replaceEditRect_.left) - 2);
+            const int editHeight = std::max(1, static_cast<int>(replaceEditRect_.bottom - replaceEditRect_.top) - 2);
+            SetWindowPos(replaceEdit_, nullptr, replaceEditRect_.left + 1, replaceEditRect_.top + 1,
+                         editWidth, editHeight, SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+    } else {
+        replaceEditRect_ = {};
+        replaceRect_ = {};
+        replaceAllRect_ = {};
+    }
 }
 
 void FindBar::invalidate() {
@@ -144,9 +209,13 @@ void FindBar::invalidate() {
     }
 }
 
-void FindBar::show() {
+void FindBar::show(bool replaceMode) {
+    replaceMode_ = replaceMode;
     visible_ = true;
     ShowWindow(hwnd_, SW_SHOW);
+    if (replaceEdit_) {
+        ShowWindow(replaceEdit_, replaceMode_ ? SW_SHOW : SW_HIDE);
+    }
     computeRects();
     SetFocus(edit_);
     SendMessageW(edit_, EM_SETSEL, 0, -1);
@@ -156,6 +225,9 @@ void FindBar::show() {
 void FindBar::hide() {
     visible_ = false;
     if (edit_ && GetFocus() == edit_) {
+        SetFocus(parent_);
+    }
+    if (replaceEdit_ && GetFocus() == replaceEdit_) {
         SetFocus(parent_);
     }
     ShowWindow(hwnd_, SW_HIDE);
@@ -169,24 +241,19 @@ void FindBar::focusEdit() {
 }
 
 std::wstring FindBar::query() const {
-    if (!edit_) {
-        return {};
-    }
-    const int length = GetWindowTextLengthW(edit_);
-    if (length <= 0) {
-        return {};
-    }
-    std::wstring text(static_cast<size_t>(length) + 1, L'\0');
-    GetWindowTextW(edit_, text.data(), length + 1);
-    text.resize(static_cast<size_t>(length));
-    return text;
+    return ControlText(edit_);
 }
 
 void FindBar::setQuery(const std::wstring& text) {
-    if (edit_) {
-        SetWindowTextW(edit_, text.c_str());
-        SendMessageW(edit_, EM_SETSEL, 0, -1);
-    }
+    SetControlText(edit_, text);
+}
+
+std::wstring FindBar::replacement() const {
+    return ControlText(replaceEdit_);
+}
+
+void FindBar::setReplacement(const std::wstring& text) {
+    SetControlText(replaceEdit_, text);
 }
 
 void FindBar::notify(UINT event) {
@@ -201,6 +268,8 @@ int FindBar::hitTest(int x, int y) const {
     if (inRect(prevRect_, x, y)) return kHotPrev;
     if (inRect(nextRect_, x, y)) return kHotNext;
     if (inRect(closeRect_, x, y)) return kHotClose;
+    if (replaceMode_ && inRect(replaceRect_, x, y)) return kHotReplace;
+    if (replaceMode_ && inRect(replaceAllRect_, x, y)) return kHotReplaceAll;
     return kHotNone;
 }
 
@@ -227,7 +296,7 @@ void FindBar::paint(HDC target) {
     RECT topLine{0, 0, width, 1};
     Fill(dc, topLine, theme::kBorder);
 
-    RECT label{theme::Scale(10, dpi_), 0, editRect_.left - theme::Scale(6, dpi_), height};
+    RECT label{theme::Scale(10, dpi_), editRect_.top, editRect_.left - theme::Scale(6, dpi_), editRect_.bottom};
     SetTextColor(dc, theme::kTextDim);
     DrawTextW(dc, L"Find", -1, &label, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
 
@@ -253,6 +322,18 @@ void FindBar::paint(HDC target) {
     drawButton(prevRect_, L"\u2191", false, kHotPrev);
     drawButton(nextRect_, L"\u2193", false, kHotNext);
     drawButton(closeRect_, L"\u00D7", false, kHotClose);
+
+    if (replaceMode_) {
+        RECT replaceLabel{theme::Scale(10, dpi_), replaceEditRect_.top,
+                          replaceEditRect_.left - theme::Scale(6, dpi_), replaceEditRect_.bottom};
+        SetTextColor(dc, theme::kTextDim);
+        DrawTextW(dc, L"Replace", -1, &replaceLabel, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+
+        RECT replaceBorder = replaceEditRect_;
+        Frame(dc, replaceBorder, GetFocus() == replaceEdit_ ? theme::kAccent : theme::kBorder);
+        drawButton(replaceRect_, L"Replace", false, kHotReplace);
+        drawButton(replaceAllRect_, L"All", false, kHotReplaceAll);
+    }
 
     SelectObject(dc, oldFont);
     BitBlt(target, 0, 0, width, height, dc, 0, 0, SRCCOPY);
@@ -348,6 +429,12 @@ LRESULT FindBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         case kHotClose:
             notify(findbar_events::kClose);
             break;
+        case kHotReplace:
+            notify(findbar_events::kReplace);
+            break;
+        case kHotReplaceAll:
+            notify(findbar_events::kReplaceAll);
+            break;
         default:
             break;
         }
@@ -384,7 +471,14 @@ LRESULT CALLBACK FindBar::EditProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
         if (wParam == VK_RETURN) {
             if (self) {
                 const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-                self->notify(shift ? findbar_events::kPrev : findbar_events::kNext);
+                const bool control = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+                if (control) {
+                    self->notify(findbar_events::kReplaceAll);
+                } else if (id == 2) {
+                    self->notify(findbar_events::kReplace);
+                } else {
+                    self->notify(shift ? findbar_events::kPrev : findbar_events::kNext);
+                }
             }
             return 0;
         }

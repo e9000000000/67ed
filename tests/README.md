@@ -16,8 +16,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-selftest.ps1
 ```
 
 Covers JSON parse/dump, UTF-8/UTF-16LE/BE/ANSI round-trips, BOM and EOL handling,
-session serialization, and Scintilla set/get/find/backward-find/undo. Expected
-final line: `summary passed=70 failed=0`.
+session serialization, Scintilla set/get/find/backward-find/undo, and the
+search/replace engine (current, all, case, whole word, expanding and empty
+replacements). Expected final line: `summary passed=83 failed=0`.
 
 ## Headless bench
 
@@ -54,8 +55,10 @@ Only for UI work; do not script repeated GUI launches.
 Single instance: with 67ed running, `build\67ed.exe second.txt` adds a tab to the
 running window; the second process exits immediately.
 
-Find: Ctrl+F pre-fills the selection, Enter/F3 finds the next hit, Shift+Enter /
-Shift+F3 finds the previous hit, Esc closes the bar.
+Find and replace: Ctrl+F / Ctrl+H open the bar (pre-filled from the selection).
+Enter/F3 finds the next hit, Shift+Enter / Shift+F3 the previous one, Enter in the
+replace field replaces the current match, Ctrl+Enter replaces all, Esc closes the
+bar. Match case and whole word are toggles in the bar.
 
 Recovery: open a file, type a character, wait about 7 seconds for the snapshot,
 then kill the process (Task Manager or `Stop-Process -Force`). Relaunch with no

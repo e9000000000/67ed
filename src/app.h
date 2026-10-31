@@ -96,9 +96,11 @@ private:
     void toggleWrap();
     void toggleLineNumbers();
     void showFontDialog();
-    void showFind();
+    void showFind(bool replace = false);
     void hideFind();
     void findNext(bool forward);
+    void replaceCurrent();
+    void replaceAll();
     std::string selectedText();
     void zoomBy(int delta);
     void resetZoom();
