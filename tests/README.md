@@ -21,8 +21,8 @@ and EOL handling, session serialization, Scintilla set/get/find/backward-find/un
 and the search/replace engine (current, all, case, whole word, regex with capture
 groups, expanding and empty replacements), go-to-line parsing/clamping,
 insert/overwrite, file-change stamps, recent-file ordering, tab-reorder
-arithmetic, read-only rejection, and crash-log writing. Expected final line:
-`summary passed=144 failed=0`.
+arithmetic, read-only rejection, Unicode surrogate pairs, empty files, and
+crash-log writing. Expected final line: `summary passed=153 failed=0`.
 
 ## Headless bench
 

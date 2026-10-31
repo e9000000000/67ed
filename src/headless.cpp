@@ -361,6 +361,25 @@ void TestFileIo(TestLog& log, const fs::path& dir) {
     LoadedFile missingFile;
     log.check(!LoadFile(missing.wstring(), missingFile, error), "fileio.missing.rejected");
 
+    const fs::path emptyPath = dir / "empty.txt";
+    log.check(WriteBytes(emptyPath, ""), "fileio.empty.write");
+    LoadedFile emptyFile;
+    log.check(LoadFile(emptyPath.wstring(), emptyFile, error) && emptyFile.text.empty(),
+              "fileio.empty.load");
+    const fs::path emptyOut = dir / "empty-out.txt";
+    log.check(SaveFile(emptyOut.wstring(), {}, Encoding::Utf8, false, error),
+              "fileio.empty.save");
+    log.check(ReadBytes(emptyOut).empty(), "fileio.empty.save.bytes");
+
+    const std::string emoji = "\xF0\x9F\x98\x80";
+    const fs::path emojiPath = dir / "emoji-utf16.txt";
+    log.check(SaveFile(emojiPath.wstring(), emoji, Encoding::Utf16LE, true, error),
+              "fileio.utf16.emoji.save", WideToUtf8(error));
+    LoadedFile emojiFile;
+    log.check(LoadFile(emojiPath.wstring(), emojiFile, error), "fileio.utf16.emoji.load",
+              WideToUtf8(error));
+    log.check(emojiFile.text == emoji, "fileio.utf16.emoji.roundtrip");
+
     const fs::path readonlyPath = dir / "readonly.txt";
     log.check(WriteBytes(readonlyPath, "read only"), "fileio.readonly.write");
     SetFileAttributesW(readonlyPath.wstring().c_str(), FILE_ATTRIBUTE_READONLY);
@@ -459,6 +478,12 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     log.check(editor::GetText(sci) == unicode, "scintilla.utf8.text");
     log.check(static_cast<size_t>(SendMessageW(sci, SCI_GETLENGTH, 0, 0)) == unicode.size(),
               "scintilla.utf8.length");
+
+    const std::string emoji = "\xF0\x9F\x98\x80";
+    editor::SetText(sci, emoji);
+    log.check(editor::GetText(sci) == emoji, "scintilla.utf8.emoji");
+    log.check(static_cast<size_t>(SendMessageW(sci, SCI_GETLENGTH, 0, 0)) == emoji.size(),
+              "scintilla.utf8.emoji.length");
 
     editor::SetText(sci, "a\r\nb");
     SendMessageW(sci, SCI_CONVERTEOLS, SC_EOL_LF, 0);
