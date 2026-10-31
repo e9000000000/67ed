@@ -18,7 +18,9 @@
 #include <vector>
 
 #include "Scintilla.h"
+#include "accel.h"
 #include "cli.h"
+#include "commands.h"
 #include "crashlog.h"
 #include "editor.h"
 #include "fileio.h"
@@ -201,6 +203,33 @@ void TestCli(TestLog& log) {
     log.check(ParseOptions({L"--mb", L"99999"}).megabytes == 2048, "cli.mb.high");
     const LaunchOptions ignored = ParseOptions({L"--wat", L"--new-tab", L"keep.txt"});
     log.check(ignored.paths.size() == 1 && ignored.paths[0] == L"keep.txt", "cli.ignored");
+}
+
+void TestAccelerators(TestLog& log) {
+    HACCEL table = CreateAppAccelerators();
+    log.check(table != nullptr, "accel.create");
+    ACCEL entries[64]{};
+    const int count = table ? CopyAcceleratorTableW(table, entries, 64) : 0;
+    log.check(count >= 30, "accel.count");
+    const auto has = [&](BYTE modifiers, WORD key, WORD command) {
+        for (int i = 0; i < count; ++i) {
+            if ((entries[i].fVirt & (FVIRTKEY | FCONTROL | FSHIFT | FALT)) == modifiers &&
+                entries[i].key == key && entries[i].cmd == command) {
+                return true;
+            }
+        }
+        return false;
+    };
+    log.check(has(FVIRTKEY | FCONTROL, 'F', kCmdFind) &&
+              has(FVIRTKEY | FCONTROL, 'H', kCmdReplace) &&
+              has(FVIRTKEY | FCONTROL, 'G', kCmdGoToLine) &&
+              has(FVIRTKEY | FCONTROL, 'R', kCmdReload), "accel.keys");
+    log.check(has(FVIRTKEY, VK_INSERT, kCmdOvertype) &&
+              has(FVIRTKEY, VK_F3, kCmdFindNext) &&
+              has(FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev), "accel.extra");
+    if (table) {
+        DestroyAcceleratorTable(table);
+    }
 }
 
 void TestJson(TestLog& log) {
@@ -654,6 +683,7 @@ int RunSelfTest(const std::wstring& logPath) {
     fs::create_directories(dir, error);
 
     TestCli(log);
+    TestAccelerators(log);
     TestJson(log);
     TestFileIo(log, dir);
     TestSession(log, dir);

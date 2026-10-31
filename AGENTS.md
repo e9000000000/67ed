@@ -52,6 +52,7 @@ opens the tabs and comes to the foreground.
 src/
   main.cpp          WinMain, single-instance gate, Scintilla registration
   cli.*             command-line option parsing
+  accel.*           application accelerator table
   app.*             main window, commands, tabs, layout, menu, session wiring
   menubar.*         custom dark menu bar and owner-drawn popups
   tabbar.*          custom dark tab strip
@@ -145,8 +146,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
 - `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
   set/get/find/undo, search/replace (plain and regex), line navigation,
   insert/overwrite, file-change stamps, recent-file ordering, tab reordering,
-  read-only handling, crash-log writing, CLI parsing, and chunked save. Expect
-  `summary passed=132 failed=0`.
+  read-only handling, crash-log writing, CLI parsing, accelerator wiring, and
+  chunked save. Expect `summary passed=136 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.

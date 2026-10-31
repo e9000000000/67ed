@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "Scintilla.h"
+#include "accel.h"
 #include "commands.h"
 #include "editor.h"
 #include "fileio.h"
@@ -249,41 +250,7 @@ void App::refreshMenuState() {
 }
 
 void App::createAccelerators() {
-    ACCEL accels[] = {
-        {FVIRTKEY | FCONTROL, 'N', kCmdNew},
-        {FVIRTKEY | FCONTROL, 'O', kCmdOpen},
-        {FVIRTKEY | FCONTROL, 'R', kCmdReload},
-        {FVIRTKEY | FCONTROL, 'S', kCmdSave},
-        {FVIRTKEY | FCONTROL | FSHIFT, 'S', kCmdSaveAs},
-        {FVIRTKEY | FCONTROL, 'W', kCmdCloseTab},
-        {FVIRTKEY | FCONTROL, 'Z', kCmdUndo},
-        {FVIRTKEY | FCONTROL, 'Y', kCmdRedo},
-        {FVIRTKEY | FCONTROL, 'X', kCmdCut},
-        {FVIRTKEY | FCONTROL, 'C', kCmdCopy},
-        {FVIRTKEY | FCONTROL, 'V', kCmdPaste},
-        {FVIRTKEY | FCONTROL, 'A', kCmdSelectAll},
-        {FVIRTKEY, VK_INSERT, kCmdOvertype},
-        {FVIRTKEY, VK_F5, kCmdTimeDate},
-        {FVIRTKEY | FALT, 'Z', kCmdWrap},
-        {FVIRTKEY | FCONTROL, VK_OEM_PLUS, kCmdZoomIn},
-        {FVIRTKEY | FCONTROL, VK_ADD, kCmdZoomIn},
-        {FVIRTKEY | FCONTROL, VK_OEM_MINUS, kCmdZoomOut},
-        {FVIRTKEY | FCONTROL, VK_SUBTRACT, kCmdZoomOut},
-        {FVIRTKEY | FCONTROL, '0', kCmdZoomReset},
-        {FVIRTKEY | FCONTROL, VK_TAB, kCmdNextTab},
-        {FVIRTKEY | FCONTROL | FSHIFT, VK_TAB, kCmdPrevTab},
-        {FVIRTKEY | FCONTROL, 'F', kCmdFind},
-        {FVIRTKEY | FCONTROL, 'H', kCmdReplace},
-        {FVIRTKEY | FCONTROL, 'G', kCmdGoToLine},
-        {FVIRTKEY, VK_F3, kCmdFindNext},
-        {FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev},
-        {FVIRTKEY | FALT, 'F', kCmdMenuFile},
-        {FVIRTKEY | FALT, 'E', kCmdMenuEdit},
-        {FVIRTKEY | FALT, 'V', kCmdMenuView},
-        {FVIRTKEY | FALT, 'H', kCmdMenuHelp},
-        {FVIRTKEY, VK_F10, kCmdMenuFile},
-    };
-    accel_ = CreateAcceleratorTableW(accels, _countof(accels));
+    accel_ = CreateAppAccelerators();
 }
 
 void App::onCommand(UINT id) {
