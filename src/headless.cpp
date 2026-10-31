@@ -443,13 +443,18 @@ void TestSession(TestLog& log, const fs::path& dir) {
     log.check(SaveSessionFile(sessionPath.wstring(), state), "session.save");
     SessionState loaded;
     log.check(LoadSessionFile(sessionPath.wstring(), loaded), "session.load");
-    log.check(loaded.tabs.size() == 2, "session.tabs");
-    log.check(loaded.active == 1, "session.active");
+    log.check(loaded.tabs.size() == 2, "session.tabs");    log.check(loaded.active == 1, "session.active");
     log.check(loaded.tabs[0].path == L"C:\\one.txt", "session.path");
     log.check(loaded.tabs[0].cursor == 12 && loaded.tabs[0].anchor == 3, "session.cursor");
     log.check(loaded.tabs[0].eol == EolMode::Lf, "session.eol");
     log.check(loaded.tabs[1].encoding == Encoding::Utf16LE && loaded.tabs[1].bom, "session.encoding");
     log.check(loaded.window.left == 10 && loaded.window.right == 810, "session.window");
+
+    const fs::path corruptPath = dir / "session-corrupt.json";
+    log.check(WriteBytes(corruptPath, "{not valid json"), "session.corrupt.write");
+    SessionState corruptState;
+    log.check(!LoadSessionFile(corruptPath.wstring(), corruptState), "session.corrupt.rejected");
+    log.check(FileExists(corruptPath.wstring() + L".bad"), "session.corrupt.backup");
 }
 
 void TestScintilla(TestLog& log, const fs::path& dir) {

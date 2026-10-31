@@ -57,6 +57,8 @@ bool LoadSessionFile(const std::wstring& path, SessionState& session) {
     }
     Json root;
     if (!Json::parse(text, root) || !root.isObject()) {
+        // Keep the broken file for inspection; start the next run clean.
+        MoveFileExW(path.c_str(), (path + L".bad").c_str(), MOVEFILE_REPLACE_EXISTING);
         return false;
     }
     const Json& window = root["window"];
