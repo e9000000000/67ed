@@ -1,5 +1,6 @@
 #include "util.h"
 
+#include <dwmapi.h>
 #include <shlobj.h>
 #include <uxtheme.h>
 
@@ -252,6 +253,27 @@ void AllowDarkModeForWindow(HWND hwnd) {
         allow(hwnd, TRUE);
     }
     SetWindowTheme(hwnd, L"DarkMode_Explorer", nullptr);
+}
+
+namespace {
+
+BOOL CALLBACK DarkenDialogChild(HWND child, LPARAM) {
+    AllowDarkModeForWindow(child);
+    return TRUE;
+}
+
+}  // namespace
+
+void ApplyDarkDialogTheme(HWND dialog) {
+    if (!dialog) {
+        return;
+    }
+    AllowDarkModeForWindow(dialog);
+    BOOL dark = TRUE;
+    if (FAILED(DwmSetWindowAttribute(dialog, 20, &dark, sizeof(dark)))) {
+        DwmSetWindowAttribute(dialog, 19, &dark, sizeof(dark));
+    }
+    EnumChildWindows(dialog, DarkenDialogChild, 0);
 }
 
 void ShowError(HWND owner, const std::wstring& message) {

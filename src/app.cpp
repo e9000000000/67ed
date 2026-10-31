@@ -49,6 +49,13 @@ void EnableDarkTitleBar(HWND hwnd) {
     }
 }
 
+UINT_PTR CALLBACK DarkFileDialogHook(HWND dialog, UINT message, WPARAM, LPARAM) {
+    if (message == WM_INITDIALOG) {
+        ApplyDarkDialogTheme(dialog);
+    }
+    return 0;
+}
+
 std::wstring NumberText(long long value) {
     return std::to_wstring(value);
 }
@@ -1262,7 +1269,8 @@ void App::openFileDialog() {
     ofn.nMaxFile = static_cast<DWORD>(_countof(buffer));
     ofn.lpstrTitle = L"Open";
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_ALLOWMULTISELECT |
-                OFN_EXPLORER | OFN_NOCHANGEDIR;
+                OFN_EXPLORER | OFN_NOCHANGEDIR | OFN_ENABLEHOOK;
+    ofn.lpfnHook = DarkFileDialogHook;
     if (!GetOpenFileNameW(&ofn)) {
         const DWORD error = CommDlgExtendedError();
         if (error != 0) {
@@ -1302,7 +1310,9 @@ bool App::showSaveDialog(std::wstring& path, const Tab* tab) {
     ofn.nMaxFile = static_cast<DWORD>(_countof(buffer));
     ofn.lpstrTitle = L"Save As";
     ofn.lpstrDefExt = L"txt";
-    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_NOCHANGEDIR;
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_NOCHANGEDIR |
+                OFN_ENABLEHOOK;
+    ofn.lpfnHook = DarkFileDialogHook;
     if (!GetSaveFileNameW(&ofn)) {
         const DWORD error = CommDlgExtendedError();
         if (error != 0) {

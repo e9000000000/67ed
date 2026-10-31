@@ -33,6 +33,7 @@ void ShowError(HWND owner, const std::wstring& message);
 
 void EnableDarkModeForApp();
 void AllowDarkModeForWindow(HWND hwnd);
+void ApplyDarkDialogTheme(HWND dialog);
 
 bool ReadTextFile(const std::wstring& path, std::string& out);
 bool WriteTextFileAtomic(const std::wstring& path, std::string_view data, std::wstring& error);

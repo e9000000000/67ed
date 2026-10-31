@@ -37,6 +37,7 @@
 #include "statusbar.h"
 #include "tabbar.h"
 #include "taborder.h"
+#include "theme.h"
 #include "util.h"
 #include "windowrect.h"
 
@@ -269,6 +270,45 @@ void TestWindowRect(TestLog& log) {
               negative.right == 1000 && negative.bottom == 800, "windowrect.negative");
     const RECT oversized = windowrect::ClampToWork(RECT{0, 0, 5000, 4000}, work);
     log.check(oversized.right == 1880 && oversized.bottom == 1040, "windowrect.oversized");
+}
+
+void TestBars(TestLog& log) {
+    HWND host = CreateHost();
+    log.check(host != nullptr, "bars.host");
+    if (!host) {
+        return;
+    }
+    const HINSTANCE instance = GetModuleHandleW(nullptr);
+    const UINT dpi = DpiOfWindow(host);
+
+    FindBar findBar;
+    log.check(findBar.create(host, instance), "bars.find.create");
+    log.check(findBar.preferredHeight(host) == theme::Scale(40, dpi), "bars.find.height");
+    findBar.show(false);
+    log.check(findBar.isVisible() && !findBar.replaceMode(), "bars.find.show");
+    findBar.setQuery(L"needle");
+    log.check(findBar.query() == L"needle", "bars.find.query");
+    findBar.show(true);
+    log.check(findBar.replaceMode() &&
+              findBar.preferredHeight(host) == theme::Scale(72, dpi), "bars.find.replace");
+    findBar.setReplacement(L"repl");
+    log.check(findBar.replacement() == L"repl", "bars.find.replacement");
+    findBar.hide();
+    log.check(!findBar.isVisible(), "bars.find.hide");
+
+    LineBar lineBar;
+    log.check(lineBar.create(host, instance), "bars.line.create");
+    log.check(lineBar.preferredHeight(host) == theme::Scale(40, dpi), "bars.line.height");
+    lineBar.setValue(L"42");
+    log.check(lineBar.value() == L"42", "bars.line.value");
+    lineBar.show();
+    log.check(lineBar.isVisible(), "bars.line.show");
+    lineBar.hide();
+    log.check(!lineBar.isVisible(), "bars.line.hide");
+
+    DestroyWindow(findBar.hwnd());
+    DestroyWindow(lineBar.hwnd());
+    DestroyWindow(host);
 }
 
 void TestJson(TestLog& log) {
@@ -759,6 +799,7 @@ int RunSelfTest(const std::wstring& logPath) {
     TestAccelerators(log);
     TestIpc(log);
     TestWindowRect(log);
+    TestBars(log);
     TestJson(log);
     TestFileIo(log, dir);
     TestSession(log, dir);
