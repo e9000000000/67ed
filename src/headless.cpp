@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "Scintilla.h"
+#include "cli.h"
 #include "crashlog.h"
 #include "editor.h"
 #include "fileio.h"
@@ -179,6 +180,27 @@ long long FindInDocument(HWND sci, long long from, long long to, const std::stri
     return static_cast<long long>(SendMessageW(sci, SCI_SEARCHINTARGET,
                                                static_cast<WPARAM>(query.size()),
                                                reinterpret_cast<LPARAM>(query.c_str())));
+}
+
+void TestCli(TestLog& log) {
+    const LaunchOptions defaults = ParseOptions({});
+    log.check(defaults.paths.empty() && !defaults.selfTest && defaults.megabytes == 100,
+              "cli.defaults");
+    const LaunchOptions files = ParseOptions({L"a.txt", L"b.txt"});
+    log.check(files.paths.size() == 2 && files.paths[1] == L"b.txt", "cli.paths");
+    const LaunchOptions self = ParseOptions({L"--selftest", L"--log", L"out.log"});
+    log.check(self.selfTest && self.logPath == L"out.log", "cli.selftest");
+    const LaunchOptions bench = ParseOptions({L"--bench", L"big.txt", L"--log", L"b.log"});
+    log.check(bench.bench && bench.benchFile == L"big.txt" && bench.logPath == L"b.log",
+              "cli.bench");
+    const LaunchOptions fixture = ParseOptions({L"--make-fixture", L"x.txt", L"--mb", L"30",
+                                                L"--one-line"});
+    log.check(fixture.makeFixture && fixture.fixturePath == L"x.txt" &&
+              fixture.megabytes == 30 && fixture.oneLine, "cli.fixture");
+    log.check(ParseOptions({L"--mb", L"0"}).megabytes == 100, "cli.mb.low");
+    log.check(ParseOptions({L"--mb", L"99999"}).megabytes == 2048, "cli.mb.high");
+    const LaunchOptions ignored = ParseOptions({L"--wat", L"--new-tab", L"keep.txt"});
+    log.check(ignored.paths.size() == 1 && ignored.paths[0] == L"keep.txt", "cli.ignored");
 }
 
 void TestJson(TestLog& log) {
@@ -631,6 +653,7 @@ int RunSelfTest(const std::wstring& logPath) {
     fs::remove_all(dir, error);
     fs::create_directories(dir, error);
 
+    TestCli(log);
     TestJson(log);
     TestFileIo(log, dir);
     TestSession(log, dir);

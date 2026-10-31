@@ -177,7 +177,7 @@ recovery file; a crash leaves it for the next launch.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 124 checks for JSON, encoding/EOL, session, Scintilla
+- `--selftest`: 132 checks for CLI parsing, JSON, encoding/EOL, session, Scintilla
   set/get/find/undo, search/replace (plain and regex), line navigation,
   insert/overwrite, file-change stamps, recent files, tab reordering, read-only
   handling, crash-log writing, and chunked save. No editor window or message box

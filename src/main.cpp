@@ -8,6 +8,7 @@
 
 #include "Scintilla.h"
 #include "app.h"
+#include "cli.h"
 #include "crashlog.h"
 #include "headless.h"
 #include "util.h"
@@ -17,19 +18,6 @@ namespace {
 constexpr wchar_t kMutexName[] = L"Local\\67ed-single-instance-v1";
 constexpr wchar_t kMainClass[] = L"67edMainWindow";
 constexpr ULONG_PTR kCopyDataTag = 0x67ED;
-
-struct LaunchOptions {
-    std::vector<std::wstring> paths;
-    bool selfTest = false;
-    bool bench = false;
-    bool startupBench = false;
-    bool makeFixture = false;
-    bool oneLine = false;
-    std::wstring benchFile;
-    std::wstring fixturePath;
-    std::wstring logPath;
-    int megabytes = 100;
-};
 
 bool SendToRunningInstance(const std::vector<std::wstring>& paths) {
     HWND target = nullptr;
@@ -66,49 +54,6 @@ void Report(const wchar_t* message) {
     MessageBoxW(nullptr, message, L"67ed", MB_OK | MB_ICONERROR);
 }
 
-LaunchOptions ParseOptions() {
-    LaunchOptions options;
-    int argc = 0;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (!argv) {
-        return options;
-    }
-    for (int i = 1; i < argc; ++i) {
-        const std::wstring arg = argv[i];
-        if (arg == L"--selftest") {
-            options.selfTest = true;
-        } else if (arg == L"--bench-startup") {
-            options.startupBench = true;
-        } else if (arg == L"--bench" && i + 1 < argc) {
-            options.bench = true;
-            options.benchFile = argv[++i];
-        } else if (arg == L"--make-fixture" && i + 1 < argc) {
-            options.makeFixture = true;
-            options.fixturePath = argv[++i];
-        } else if (arg == L"--mb" && i + 1 < argc) {
-            options.megabytes = static_cast<int>(wcstol(argv[++i], nullptr, 10));
-        } else if (arg == L"--one-line") {
-            options.oneLine = true;
-        } else if (arg == L"--log" && i + 1 < argc) {
-            options.logPath = argv[++i];
-        } else if (arg == L"--new-tab" || arg == L"--new") {
-            // Compatible no-op: no-argument launches already open a new tab.
-        } else if (!arg.empty() && arg[0] == L'-') {
-            // Unknown option.
-        } else if (!arg.empty()) {
-            options.paths.push_back(arg);
-        }
-    }
-    LocalFree(argv);
-    if (options.megabytes < 1) {
-        options.megabytes = 100;
-    }
-    if (options.megabytes > 2048) {
-        options.megabytes = 2048;
-    }
-    return options;
-}
-
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
@@ -117,7 +62,15 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES};
     InitCommonControlsEx(&controls);
 
-    const LaunchOptions options = ParseOptions();
+    std::vector<std::wstring> arguments;
+    int argc = 0;
+    if (LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc)) {
+        for (int i = 1; i < argc; ++i) {
+            arguments.emplace_back(argv[i]);
+        }
+        LocalFree(argv);
+    }
+    const LaunchOptions options = ParseOptions(arguments);
 
     if (options.selfTest || options.bench || options.startupBench || options.makeFixture) {
         if (!Scintilla_RegisterClasses(instance)) {
