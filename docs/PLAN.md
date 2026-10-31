@@ -18,9 +18,9 @@
   Scintilla per tab, open/save, chunked 100 MB load, single-instance handoff,
   custom dark scrollbars, lazy session restore.
 - **M1 in progress.** Tabs, lazy loading, session persistence, dirty prompts,
-  duplicate-path focusing, close/reopen restore, dirty-buffer recovery snapshots.
-  Headless `--selftest` (83 checks), `--bench`, and `--make-fixture` are in place.
-  Still missing: tab drag-reorder, tab context menu.
+  duplicate-path focusing, close/reopen restore, dirty-buffer recovery snapshots,
+  tab drag-reorder, and the recent-files menu. Headless `--selftest` (118 checks),
+  `--bench`, and `--make-fixture` are in place. Still missing: tab context menu.
 - **M2 complete (2026-11-01).** Custom dark menu bar and popups, font dialog,
   wrap, line numbers, EOL, zoom, find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3,
   match case, whole word, regex, replace, replace all), go-to-line (Ctrl+G), F5

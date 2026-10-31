@@ -218,6 +218,8 @@ void App::refreshMenuState() {
         state.readOnly = tab->readOnly;
         state.overtype = Sci(tab, SCI_GETOVERTYPE) != 0;
     }
+    state.recent.assign(settings_.recent.begin(),
+                        settings_.recent.begin() + std::min<size_t>(settings_.recent.size(), 8));
     menuBar_.setState(state);
 }
 
@@ -261,12 +263,32 @@ void App::createAccelerators() {
 
 void App::onCommand(UINT id) {
     Tab* tab = activeTab();
+    if (id >= kCmdRecentBase && id < kCmdRecentBase + 8) {
+        const size_t index = static_cast<size_t>(id - kCmdRecentBase);
+        if (index < settings_.recent.size()) {
+            const std::wstring path = settings_.recent[index];
+            if (FileExists(path)) {
+                openPaths({path}, false);
+            } else {
+                settings_.recent.erase(settings_.recent.begin() + static_cast<long long>(index));
+                SaveSettings(settings_);
+                refreshMenuState();
+                ShowError(hwnd_, L"File not found:\n" + path);
+            }
+        }
+        return;
+    }
     switch (id) {
     case kCmdNew:
         newTab();
         break;
     case kCmdOpen:
         openFileDialog();
+        break;
+    case kCmdClearRecent:
+        settings_.recent.clear();
+        SaveSettings(settings_);
+        refreshMenuState();
         break;
     case kCmdReload:
         if (tab && !tab->path.empty()) {
@@ -1801,6 +1823,26 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     case tabbar_events::kClose:
         closeTab(static_cast<int>(wParam));
         return 0;
+    case tabbar_events::kReorder: {
+        const int from = static_cast<int>(wParam);
+        const int to = static_cast<int>(lParam);
+        if (from >= 0 && to >= 0 && from < static_cast<int>(tabs_.size()) &&
+            to < static_cast<int>(tabs_.size()) && from != to) {
+            Tab* current = activeTab();
+            auto moved = std::move(tabs_[from]);
+            tabs_.erase(tabs_.begin() + from);
+            tabs_.insert(tabs_.begin() + to, std::move(moved));
+            active_ = current ? indexOfTab(current) : -1;
+            if (active_ < 0 && !tabs_.empty()) {
+                active_ = 0;
+            }
+            updateTabBar();
+            layout();
+            updateStatus();
+            markSessionDirty();
+        }
+        return 0;
+    }
     case tabbar_events::kNew:
         newTab();
         return 0;

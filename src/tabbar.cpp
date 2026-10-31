@@ -3,7 +3,9 @@
 #include <windowsx.h>
 
 #include <algorithm>
+#include <cstdlib>
 
+#include "taborder.h"
 #include "theme.h"
 #include "util.h"
 
@@ -111,6 +113,16 @@ int TabBar::hitTest(int x, int y) const {
         }
     }
     return -1;
+}
+
+int TabBar::dropIndexFromPoint(int x) const {
+    for (size_t i = 0; i < tabRects_.size(); ++i) {
+        const int center = (tabRects_[i].left + tabRects_[i].right) / 2;
+        if (x < center) {
+            return static_cast<int>(i);
+        }
+    }
+    return static_cast<int>(tabRects_.size());
 }
 
 bool TabBar::pointIn(const RECT& rect, int x, int y) const {
@@ -253,6 +265,20 @@ void TabBar::paint(HDC target) {
                   DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX);
     }
 
+    // Drag insertion marker.
+    if (dragging_ && dropIndex_ >= 0 && !tabs_.empty()) {
+        int lineX = 0;
+        if (dropIndex_ <= 0) {
+            lineX = tabRects_.front().left - theme::Scale(2, dpi_);
+        } else if (dropIndex_ >= static_cast<int>(tabRects_.size())) {
+            lineX = tabRects_.back().right + theme::Scale(1, dpi_);
+        } else {
+            lineX = tabRects_[dropIndex_].left - theme::Scale(2, dpi_);
+        }
+        RECT marker{lineX, theme::Scale(4, dpi_), lineX + theme::Scale(2, dpi_), height - theme::Scale(4, dpi_)};
+        FillRectColor(dc, marker, theme::kAccent);
+    }
+
     // New-tab plus.
     if (plusRect_.right >= 0 && plusRect_.left <= width) {
         SetTextColor(dc, theme::kTextDim);
@@ -305,6 +331,21 @@ LRESULT TabBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     case WM_MOUSEMOVE: {
         const int x = GET_X_LPARAM(lParam);
         const int y = GET_Y_LPARAM(lParam);
+        if (dragIndex_ >= 0) {
+            if (!dragging_ &&
+                (std::abs(x - dragStartX_) >= theme::Scale(10, dpi_) ||
+                 std::abs(y - dragStartY_) >= theme::Scale(10, dpi_))) {
+                dragging_ = true;
+            }
+            if (dragging_) {
+                const int drop = dropIndexFromPoint(x);
+                if (drop != dropIndex_) {
+                    dropIndex_ = drop;
+                    invalidate();
+                }
+                return 0;
+            }
+        }
         const int hover = hitTest(x, y);
         bool closeHover = false;
         if (hover >= 0 && hover < static_cast<int>(closeRects_.size())) {
@@ -341,10 +382,46 @@ LRESULT TabBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
                 notify(tabbar_events::kClose, static_cast<WPARAM>(index));
             } else {
                 notify(tabbar_events::kSelect, static_cast<WPARAM>(index));
+                dragIndex_ = index;
+                dragStartX_ = x;
+                dragStartY_ = y;
+                dropIndex_ = index;
+                dragging_ = false;
+                SetCapture(hwnd_);
             }
         }
         return 0;
     }
+    case WM_LBUTTONUP: {
+        if (dragIndex_ >= 0) {
+            const int from = dragIndex_;
+            const int drop = dropIndex_;
+            const bool wasDragging = dragging_;
+            dragging_ = false;
+            dragIndex_ = -1;
+            dropIndex_ = -1;
+            if (GetCapture() == hwnd_) {
+                ReleaseCapture();
+            }
+            if (wasDragging) {
+                const int target = taborder::TargetFromDrop(drop, from);
+                if (target != from && target >= 0) {
+                    notify(tabbar_events::kReorder, static_cast<WPARAM>(from),
+                           static_cast<LPARAM>(target));
+                }
+            }
+            invalidate();
+        }
+        return 0;
+    }
+    case WM_CAPTURECHANGED:
+        if (dragIndex_ >= 0) {
+            dragging_ = false;
+            dragIndex_ = -1;
+            dropIndex_ = -1;
+            invalidate();
+        }
+        return 0;
     case WM_MBUTTONUP: {
         const int x = GET_X_LPARAM(lParam);
         const int y = GET_Y_LPARAM(lParam);

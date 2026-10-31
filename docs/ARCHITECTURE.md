@@ -177,10 +177,10 @@ recovery file; a crash leaves it for the next launch.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 106 checks for JSON, encoding/EOL, session, Scintilla
+- `--selftest`: 118 checks for JSON, encoding/EOL, session, Scintilla
   set/get/find/undo, search/replace (plain and regex), line navigation,
-  insert/overwrite, file-change stamps, and chunked save. No editor window or
-  message box appears.
+  insert/overwrite, file-change stamps, recent files, tab reordering, and chunked
+  save. No editor window or message box appears.
 - Fixture generator: `--make-fixture <path> <MB> [--one-line]`.
 - Bench: `--bench <path>` opens hidden, reports open/RSS/scroll/find/save and RSS
   after save.

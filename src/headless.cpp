@@ -26,6 +26,7 @@
 #include "search.h"
 #include "session.h"
 #include "settings.h"
+#include "taborder.h"
 #include "util.h"
 
 namespace {
@@ -463,6 +464,37 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     DestroyWindow(host);
 }
 
+void TestSettings(TestLog& log) {
+    Settings settings;
+    AddRecentFile(settings, L"C:\\recent\\one.txt");
+    AddRecentFile(settings, L"C:\\recent\\two.txt");
+    log.check(settings.recent.size() == 2 && FileNameOf(settings.recent[0]) == L"two.txt",
+              "recent.order");
+    AddRecentFile(settings, L"C:\\RECENT\\ONE.TXT");
+    log.check(settings.recent.size() == 2, "recent.dedup");
+    log.check(PathsEqual(settings.recent[0], L"C:\\RECENT\\ONE.TXT"), "recent.dedup.front");
+    for (int i = 0; i < 15; ++i) {
+        AddRecentFile(settings, L"C:\\recent\\f" + std::to_wstring(i) + L".txt");
+    }
+    log.check(settings.recent.size() == 10, "recent.limit");
+    log.check(FileNameOf(settings.recent[0]) == L"f14.txt", "recent.newest");
+}
+
+void TestTabOrder(TestLog& log) {
+    std::vector<std::string> order{"a", "b", "c", "d"};
+    taborder::Move(order, 0, 2);
+    log.check(order == std::vector<std::string>{"b", "c", "a", "d"}, "taborder.right");
+    taborder::Move(order, 3, 1);
+    log.check(order == std::vector<std::string>{"b", "d", "c", "a"}, "taborder.left");
+    taborder::Move(order, 1, 1);
+    log.check(order == std::vector<std::string>{"b", "d", "c", "a"}, "taborder.same");
+    taborder::Move(order, 9, 0);
+    log.check(order == std::vector<std::string>{"b", "d", "c", "a"}, "taborder.invalid");
+    log.check(taborder::TargetFromDrop(0, 2) == 0, "taborder.drop.before");
+    log.check(taborder::TargetFromDrop(4, 1) == 3, "taborder.drop.after");
+    log.check(taborder::TargetFromDrop(1, 1) == 1, "taborder.drop.same");
+}
+
 int RunBenchImpl(const std::wstring& filePath, const std::wstring& logPath) {
     TestLog log(logPath.empty() ? DefaultLogPath(L"67ed-bench.log") : logPath);
     if (!log.ok()) {
@@ -579,7 +611,9 @@ int RunSelfTest(const std::wstring& logPath) {
     TestJson(log);
     TestFileIo(log, dir);
     TestSession(log, dir);
+    TestSettings(log);
     TestScintilla(log, dir);
+    TestTabOrder(log);
 
     fs::remove_all(dir, error);
 

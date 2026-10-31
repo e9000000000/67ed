@@ -34,6 +34,8 @@ enum : unsigned int {
     kCmdMenuEdit,
     kCmdMenuView,
     kCmdMenuHelp,
+    kCmdRecentBase = 3000,
+    kCmdClearRecent = 3010,
     kCmdFind,
     kCmdReplace,
     kCmdGoToLine,

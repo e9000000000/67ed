@@ -36,6 +36,7 @@ private:
     void computeLayout();
     void paint(HDC dc);
     int hitTest(int x, int y) const;
+    int dropIndexFromPoint(int x) const;
     bool pointIn(const RECT& rect, int x, int y) const;
     void notify(UINT message, WPARAM wParam = 0, LPARAM lParam = 0);
     void ensureActiveVisible();
@@ -50,6 +51,12 @@ private:
     int hover_ = -1;
     bool closeHover_ = false;
     int scrollX_ = 0;
+
+    bool dragging_ = false;
+    int dragIndex_ = -1;
+    int dragStartX_ = 0;
+    int dragStartY_ = 0;
+    int dropIndex_ = -1;
 
     std::vector<RECT> tabRects_;
     std::vector<RECT> closeRects_;

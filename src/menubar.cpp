@@ -132,6 +132,18 @@ void MenuBar::rebuildMenus() {
     file.title = L"File";
     file.items.push_back(MakeItem(kCmdNew, L"New Tab", L"Ctrl+N"));
     file.items.push_back(MakeItem(kCmdOpen, L"Open...", L"Ctrl+O"));
+    if (!state_.recent.empty()) {
+        file.items.push_back(MakeSeparator());
+        const size_t count = std::min<size_t>(state_.recent.size(), 8);
+        for (size_t i = 0; i < count; ++i) {
+            std::wstring label = FileNameOf(state_.recent[i]);
+            if (label.empty()) {
+                label = state_.recent[i];
+            }
+            file.items.push_back(MakeItem(kCmdRecentBase + static_cast<UINT>(i), label.c_str()));
+        }
+        file.items.push_back(MakeItem(kCmdClearRecent, L"Clear Recent Files"));
+    }
     file.items.push_back(MakeSeparator());
     file.items.push_back(MakeItem(kCmdSave, L"Save", L"Ctrl+S", has));
     file.items.push_back(MakeItem(kCmdSaveAs, L"Save As...", L"Ctrl+Shift+S", has));

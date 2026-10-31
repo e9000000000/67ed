@@ -17,6 +17,7 @@ struct MenuState {
     bool readOnly = false;
     bool overtype = false;
     EolMode eol = EolMode::Crlf;
+    std::vector<std::wstring> recent;
 };
 
 struct MenuItem {
