@@ -149,6 +149,7 @@ void MenuBar::rebuildMenus() {
     edit.items.push_back(MakeItem(kCmdCopy, L"Copy", L"Ctrl+C", state_.hasSelection));
     edit.items.push_back(MakeItem(kCmdPaste, L"Paste", L"Ctrl+V", has));
     edit.items.push_back(MakeItem(kCmdSelectAll, L"Select All", L"Ctrl+A", has));
+    edit.items.push_back(MakeItem(kCmdOvertype, L"Overwrite", L"Insert", has, state_.overtype));
     edit.items.push_back(MakeSeparator());
     edit.items.push_back(MakeItem(kCmdFind, L"Find...", L"Ctrl+F", has));
     edit.items.push_back(MakeItem(kCmdReplace, L"Replace...", L"Ctrl+H", has));

@@ -15,6 +15,7 @@ struct MenuState {
     bool canRedo = false;
     bool hasSelection = false;
     bool readOnly = false;
+    bool overtype = false;
     EolMode eol = EolMode::Crlf;
 };
 

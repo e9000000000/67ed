@@ -29,6 +29,7 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
 - Go to line: Ctrl+G
+- Insert/overwrite: Insert; status shows `OVR`
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save

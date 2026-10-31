@@ -18,8 +18,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-selftest.ps1
 Covers JSON parse/dump, UTF-8/UTF-16LE/BE/ANSI round-trips, BOM and EOL handling,
 session serialization, Scintilla set/get/find/backward-find/undo, and the
 search/replace engine (current, all, case, whole word, regex with capture groups,
-expanding and empty replacements), and go-to-line parsing/clamping. Expected final
-line: `summary passed=97 failed=0`.
+expanding and empty replacements), go-to-line parsing/clamping, and
+insert/overwrite. Expected final line: `summary passed=100 failed=0`.
 
 ## Headless bench
 
@@ -63,6 +63,8 @@ bar. Match case, whole word, and regex (`.*`) are toggles; regex replacements
 accept `\1` capture references.
 
 Go to line: Ctrl+G opens the line bar, Enter jumps, Esc closes.
+
+Insert/overwrite: Insert toggles overtype; the status bar shows `OVR`.
 
 Recovery: open a file, type a character, wait about 7 seconds for the snapshot,
 then kill the process (Task Manager or `Stop-Process -Force`). Relaunch with no

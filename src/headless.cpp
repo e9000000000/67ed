@@ -413,6 +413,17 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     log.check(static_cast<long long>(SendMessageW(sci, SCI_GETCURRENTPOS, 0, 0)) == 8,
               "linenav.gotoline");
 
+    editor::SetText(sci, "abc");
+    SendMessageW(sci, SCI_SETOVERTYPE, 1, 0);
+    log.check(SendMessageW(sci, SCI_GETOVERTYPE, 0, 0) != 0, "overtype.toggle");
+    SendMessageW(sci, SCI_GOTOPOS, 1, 0);
+    SendMessageW(sci, WM_CHAR, 'X', 0);
+    log.check(editor::GetText(sci) == "aXc", "overtype.replaces");
+    SendMessageW(sci, SCI_SETOVERTYPE, 0, 0);
+    SendMessageW(sci, SCI_GOTOPOS, 1, 0);
+    SendMessageW(sci, WM_CHAR, 'Y', 0);
+    log.check(editor::GetText(sci) == "aYXc", "overtype.insert.restored");
+
     // Chunked save crosses the 4 MB chunk boundary; verify the exact bytes.
     std::string large;
     large.reserve(5 * 1024 * 1024 + 64);

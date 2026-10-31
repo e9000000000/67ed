@@ -15,6 +15,7 @@ enum : unsigned int {
     kCmdCopy,
     kCmdPaste,
     kCmdSelectAll,
+    kCmdOvertype,
     kCmdTimeDate,
     kCmdWrap,
     kCmdLineNumbers,

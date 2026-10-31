@@ -21,10 +21,10 @@
   duplicate-path focusing, close/reopen restore, dirty-buffer recovery snapshots.
   Headless `--selftest` (83 checks), `--bench`, and `--make-fixture` are in place.
   Still missing: tab drag-reorder, tab context menu.
-- **M2 in progress.** Custom dark menu bar and popups, font dialog, wrap, line
-  numbers, EOL, zoom, and the find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3,
-  match case, whole word, regex, replace, replace all) and go-to-line (Ctrl+G).
-  Still missing: insert/overwrite.
+- **M2 complete (2026-11-01).** Custom dark menu bar and popups, font dialog,
+  wrap, line numbers, EOL, zoom, find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3,
+  match case, whole word, regex, replace, replace all), go-to-line (Ctrl+G), F5
+  time/date, and insert/overwrite.
 - **M3 in progress.** Dirty snapshots and recovery restore are done, as are the
   encoding matrix, drag-and-drop, recent files, and read-only/binary/2 GB guards.
   Still missing: file watching and disk-conflict handling.

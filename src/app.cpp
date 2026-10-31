@@ -214,6 +214,7 @@ void App::refreshMenuState() {
         state.canRedo = Sci(tab, SCI_CANREDO) != 0;
         state.hasSelection = Sci(tab, SCI_GETSELECTIONEND) != Sci(tab, SCI_GETSELECTIONSTART);
         state.readOnly = tab->readOnly;
+        state.overtype = Sci(tab, SCI_GETOVERTYPE) != 0;
     }
     menuBar_.setState(state);
 }
@@ -231,6 +232,7 @@ void App::createAccelerators() {
         {FVIRTKEY | FCONTROL, 'C', kCmdCopy},
         {FVIRTKEY | FCONTROL, 'V', kCmdPaste},
         {FVIRTKEY | FCONTROL, 'A', kCmdSelectAll},
+        {FVIRTKEY, VK_INSERT, kCmdOvertype},
         {FVIRTKEY, VK_F5, kCmdTimeDate},
         {FVIRTKEY | FALT, 'Z', kCmdWrap},
         {FVIRTKEY | FCONTROL, VK_OEM_PLUS, kCmdZoomIn},
@@ -301,6 +303,12 @@ void App::onCommand(UINT id) {
     case kCmdSelectAll:
         Sci(tab, SCI_SELECTALL);
         updateStatus();
+        break;
+    case kCmdOvertype:
+        if (tab && tab->loaded) {
+            Sci(tab, SCI_SETOVERTYPE, Sci(tab, SCI_GETOVERTYPE) ? 0 : 1);
+            updateStatus();
+        }
         break;
     case kCmdTimeDate:
         insertTimeDate();
@@ -661,6 +669,9 @@ void App::updateStatus() {
         }
         info.eol = EolName(tab->eol);
         info.wrap = tab->wrap ? L"Wrap" : L"";
+        if (Sci(tab, SCI_GETOVERTYPE) != 0) {
+            info.wrap = info.wrap.empty() ? L"OVR" : L"OVR " + info.wrap;
+        }
         if (tab->readOnly) {
             info.message = L"Read-only";
         }
