@@ -11,11 +11,10 @@ M0 is complete and M1 is in progress. The app builds as a single x64 executable
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
 numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
-Shift+F3, match case, whole word, replace all), and dirty-buffer crash recovery.
-100 MB files are measured in `docs/PERF.md`.
+Shift+F3, match case, whole word, regex, replace all), and dirty-buffer crash
+recovery. 100 MB files are measured in `docs/PERF.md`.
 
-Known gaps: regex search, go-to-line, tab drag-reorder/context menu, dark native
-file dialogs.
+Known gaps: go-to-line, tab drag-reorder/context menu, dark native file dialogs.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
 
 ## Build
@@ -135,8 +134,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
 ```
 
 - `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
-  set/get/find/undo, search/replace, and chunked save. Expect
-  `summary passed=83 failed=0`.
+  set/get/find/undo, search/replace (plain and regex), and chunked save. Expect
+  `summary passed=90 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
 - All three accept `--log <path>`.

@@ -15,6 +15,7 @@ constexpr wchar_t kFindBarClass[] = L"67edFindBar";
 enum HotSpot {
     kHotCase = 0,
     kHotWord,
+    kHotRegex,
     kHotPrev,
     kHotNext,
     kHotClose,
@@ -164,7 +165,8 @@ void FindBar::computeRects() {
     closeRect_ = {width - pad - closeWidth, y, width - pad, y + button};
     nextRect_ = {closeRect_.left - gap - button, y, closeRect_.left - gap, y + button};
     prevRect_ = {nextRect_.left - gap - button, y, nextRect_.left - gap, y + button};
-    wordRect_ = {prevRect_.left - gap - button, y, prevRect_.left - gap, y + button};
+    regexRect_ = {prevRect_.left - gap - button, y, prevRect_.left - gap, y + button};
+    wordRect_ = {regexRect_.left - gap - button, y, regexRect_.left - gap, y + button};
     caseRect_ = {wordRect_.left - gap - caseWidth, y, wordRect_.left - gap, y + button};
 
     editRect_ = {pad + labelWidth, y, caseRect_.left - gap, y + button};
@@ -265,6 +267,7 @@ void FindBar::notify(UINT event) {
 int FindBar::hitTest(int x, int y) const {
     if (inRect(caseRect_, x, y)) return kHotCase;
     if (inRect(wordRect_, x, y)) return kHotWord;
+    if (inRect(regexRect_, x, y)) return kHotRegex;
     if (inRect(prevRect_, x, y)) return kHotPrev;
     if (inRect(nextRect_, x, y)) return kHotNext;
     if (inRect(closeRect_, x, y)) return kHotClose;
@@ -319,6 +322,7 @@ void FindBar::paint(HDC target) {
 
     drawButton(caseRect_, L"Aa", matchCase_, kHotCase);
     drawButton(wordRect_, L"W", wholeWord_, kHotWord);
+    drawButton(regexRect_, L".*", regex_, kHotRegex);
     drawButton(prevRect_, L"\u2191", false, kHotPrev);
     drawButton(nextRect_, L"\u2193", false, kHotNext);
     drawButton(closeRect_, L"\u00D7", false, kHotClose);
@@ -418,6 +422,10 @@ LRESULT FindBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             break;
         case kHotWord:
             wholeWord_ = !wholeWord_;
+            invalidate();
+            break;
+        case kHotRegex:
+            regex_ = !regex_;
             invalidate();
             break;
         case kHotPrev:

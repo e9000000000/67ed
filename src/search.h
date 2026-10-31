@@ -10,20 +10,22 @@ namespace search {
 struct Options {
     bool matchCase = false;
     bool wholeWord = false;
+    bool regex = false;
 };
 
 void SetOptions(HWND sci, const Options& options);
 
 // Searches [from, to). If from > to Scintilla searches backwards. Returns the
-// match start, or -1.
+// match start, or -1. Call SetOptions first.
 long long FindInRange(HWND sci, std::string_view query, long long from, long long to);
 
 bool SelectionMatches(HWND sci, std::string_view query);
 
 // Replaces the current selection; the caller must have checked SelectionMatches.
-void ReplaceSelection(HWND sci, std::string_view replacement);
+void ReplaceSelection(HWND sci, std::string_view replacement, const Options& options);
 
 // Replaces every match from the start of the document. Returns the count.
-long long ReplaceAll(HWND sci, std::string_view query, std::string_view replacement);
+long long ReplaceAll(HWND sci, std::string_view query, std::string_view replacement,
+                     const Options& options);
 
 }  // namespace search

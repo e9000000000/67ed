@@ -355,32 +355,50 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     search::Options searchOptions;
     search::SetOptions(sci, searchOptions);
     log.check(search::SelectionMatches(sci, "alpha"), "search.selection.match");
-    search::ReplaceSelection(sci, "z");
+    search::ReplaceSelection(sci, "z", searchOptions);
     log.check(editor::GetText(sci) == "z beta alpha gamma alpha", "search.replace.current");
 
-    log.check(search::ReplaceAll(sci, "alpha", "Q") == 2, "search.replaceall.count");
+    log.check(search::ReplaceAll(sci, "alpha", "Q", searchOptions) == 2, "search.replaceall.count");
     log.check(editor::GetText(sci) == "z beta Q gamma Q", "search.replaceall.text");
 
     editor::SetText(sci, "Alpha alpha ALPHA");
     searchOptions.matchCase = true;
     search::SetOptions(sci, searchOptions);
-    log.check(search::ReplaceAll(sci, "alpha", "x") == 1, "search.replaceall.case");
+    log.check(search::ReplaceAll(sci, "alpha", "x", searchOptions) == 1, "search.replaceall.case");
 
     editor::SetText(sci, "cat scatter cat");
     searchOptions.matchCase = false;
     searchOptions.wholeWord = true;
     search::SetOptions(sci, searchOptions);
-    log.check(search::ReplaceAll(sci, "cat", "dog") == 2, "search.replaceall.wholeword");
+    log.check(search::ReplaceAll(sci, "cat", "dog", searchOptions) == 2, "search.replaceall.wholeword");
 
     editor::SetText(sci, "a a a");
     searchOptions.wholeWord = false;
     search::SetOptions(sci, searchOptions);
-    log.check(search::ReplaceAll(sci, "a", "aa") == 3, "search.replaceall.expanding");
+    log.check(search::ReplaceAll(sci, "a", "aa", searchOptions) == 3, "search.replaceall.expanding");
     log.check(editor::GetText(sci) == "aa aa aa", "search.replaceall.expanding.text");
 
     editor::SetText(sci, "ab ab");
-    log.check(search::ReplaceAll(sci, "ab", "") == 2, "search.replaceall.empty");
+    log.check(search::ReplaceAll(sci, "ab", "", searchOptions) == 2, "search.replaceall.empty");
     log.check(editor::GetText(sci) == " ", "search.replaceall.empty.text");
+
+    editor::SetText(sci, "cat 123 dog 456");
+    searchOptions = search::Options{};
+    searchOptions.regex = true;
+    search::SetOptions(sci, searchOptions);
+    const long long regexLength = static_cast<long long>(SendMessageW(sci, SCI_GETLENGTH, 0, 0));
+    log.check(search::FindInRange(sci, "\\d+", 0, regexLength) == 4, "search.regex.find");
+    log.check(search::ReplaceAll(sci, "\\d+", "#", searchOptions) == 2, "search.regex.replaceall");
+    log.check(editor::GetText(sci) == "cat # dog #", "search.regex.replaceall.text");
+
+    editor::SetText(sci, "cat 123 dog 456");
+    log.check(search::ReplaceAll(sci, "(\\w+) (\\d+)", "\\2 \\1", searchOptions) == 2,
+              "search.regex.groups");
+    log.check(editor::GetText(sci) == "123 cat 456 dog", "search.regex.groups.text");
+
+    editor::SetText(sci, "keep");
+    log.check(search::ReplaceAll(sci, "[", "x", searchOptions) == 0, "search.regex.invalid");
+    log.check(editor::GetText(sci) == "keep", "search.regex.invalid.text");
 
     // Chunked save crosses the 4 MB chunk boundary; verify the exact bytes.
     std::string large;

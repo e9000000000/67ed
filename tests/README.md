@@ -17,8 +17,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-selftest.ps1
 
 Covers JSON parse/dump, UTF-8/UTF-16LE/BE/ANSI round-trips, BOM and EOL handling,
 session serialization, Scintilla set/get/find/backward-find/undo, and the
-search/replace engine (current, all, case, whole word, expanding and empty
-replacements). Expected final line: `summary passed=83 failed=0`.
+search/replace engine (current, all, case, whole word, regex with capture groups,
+expanding and empty replacements). Expected final line:
+`summary passed=90 failed=0`.
 
 ## Headless bench
 

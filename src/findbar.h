@@ -32,6 +32,7 @@ public:
     void setReplacement(const std::wstring& text);
     bool matchCase() const { return matchCase_; }
     bool wholeWord() const { return wholeWord_; }
+    bool regex() const { return regex_; }
 
     void invalidate();
 
@@ -58,12 +59,14 @@ private:
     bool replaceMode_ = false;
     bool matchCase_ = false;
     bool wholeWord_ = false;
+    bool regex_ = false;
     int hover_ = -1;
 
     RECT editRect_{};
     RECT replaceEditRect_{};
     RECT caseRect_{};
     RECT wordRect_{};
+    RECT regexRect_{};
     RECT prevRect_{};
     RECT nextRect_{};
     RECT closeRect_{};

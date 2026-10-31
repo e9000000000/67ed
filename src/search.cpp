@@ -20,6 +20,9 @@ int Flags(const Options& options) {
     if (options.wholeWord) {
         flags |= SCFIND_WHOLEWORD;
     }
+    if (options.regex) {
+        flags |= SCFIND_REGEXP | SCFIND_CXX11REGEX;
+    }
     return flags;
 }
 
@@ -53,20 +56,30 @@ bool SelectionMatches(HWND sci, std::string_view query) {
     return found == start && targetEnd == end;
 }
 
-void ReplaceSelection(HWND sci, std::string_view replacement) {
+void ReplaceSelection(HWND sci, std::string_view replacement, const Options& options) {
     if (!sci) {
         return;
     }
-    S(sci, SCI_TARGETFROMSELECTION);
-    S(sci, SCI_REPLACETARGET, replacement.size(),
-      reinterpret_cast<sptr_t>(replacement.data()));
     const long long start = static_cast<long long>(S(sci, SCI_GETSELECTIONSTART));
+    const long long end = static_cast<long long>(S(sci, SCI_GETSELECTIONEND));
+    const long long before = static_cast<long long>(S(sci, SCI_GETLENGTH));
+    S(sci, SCI_TARGETFROMSELECTION);
+    if (options.regex) {
+        S(sci, SCI_REPLACETARGETRE, replacement.size(),
+          reinterpret_cast<sptr_t>(replacement.data()));
+    } else {
+        S(sci, SCI_REPLACETARGET, replacement.size(),
+          reinterpret_cast<sptr_t>(replacement.data()));
+    }
+    const long long after = static_cast<long long>(S(sci, SCI_GETLENGTH));
+    const long long inserted = after - before + std::max<long long>(0, end - start);
     S(sci, SCI_SETSEL, static_cast<uptr_t>(start),
-      static_cast<sptr_t>(start + static_cast<long long>(replacement.size())));
+      static_cast<sptr_t>(start + inserted));
     S(sci, SCI_SCROLLCARET);
 }
 
-long long ReplaceAll(HWND sci, std::string_view query, std::string_view replacement) {
+long long ReplaceAll(HWND sci, std::string_view query, std::string_view replacement,
+                     const Options& options) {
     if (!sci || query.empty()) {
         return 0;
     }
@@ -79,13 +92,26 @@ long long ReplaceAll(HWND sci, std::string_view query, std::string_view replacem
         if (found < 0) {
             break;
         }
+        const long long matchEnd = static_cast<long long>(S(sci, SCI_GETTARGETEND));
+        const long long matchLength = std::max<long long>(0, matchEnd - found);
         S(sci, SCI_SETTARGETSTART, static_cast<uptr_t>(found), 0);
-        S(sci, SCI_SETTARGETEND,
-          static_cast<uptr_t>(found + static_cast<long long>(query.size())), 0);
-        S(sci, SCI_REPLACETARGET, replacement.size(),
-          reinterpret_cast<sptr_t>(replacement.data()));
-        length = static_cast<long long>(S(sci, SCI_GETLENGTH));
-        position = found + static_cast<long long>(replacement.size());
+        S(sci, SCI_SETTARGETEND, static_cast<uptr_t>(matchEnd), 0);
+        const long long before = static_cast<long long>(S(sci, SCI_GETLENGTH));
+        if (options.regex) {
+            S(sci, SCI_REPLACETARGETRE, replacement.size(),
+              reinterpret_cast<sptr_t>(replacement.data()));
+        } else {
+            S(sci, SCI_REPLACETARGET, replacement.size(),
+              reinterpret_cast<sptr_t>(replacement.data()));
+        }
+        const long long after = static_cast<long long>(S(sci, SCI_GETLENGTH));
+        const long long inserted = after - before + matchLength;
+        length = after;
+        position = found + inserted;
+        // Zero-width regex matches must still advance through the document.
+        if (inserted == 0) {
+            position = found + 1;
+        }
         ++count;
     }
     S(sci, SCI_ENDUNDOACTION);

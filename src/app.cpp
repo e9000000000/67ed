@@ -1209,6 +1209,7 @@ void App::findNext(bool forward) {
     search::Options options;
     options.matchCase = findBar_.matchCase();
     options.wholeWord = findBar_.wholeWord();
+    options.regex = findBar_.regex();
     search::SetOptions(tab->sci, options);
 
     const auto search = [&](long long from, long long to) -> long long {
@@ -1269,10 +1270,11 @@ void App::replaceCurrent() {
     search::Options options;
     options.matchCase = findBar_.matchCase();
     options.wholeWord = findBar_.wholeWord();
+    options.regex = findBar_.regex();
     search::SetOptions(tab->sci, options);
 
     if (search::SelectionMatches(tab->sci, query)) {
-        search::ReplaceSelection(tab->sci, replacement);
+        search::ReplaceSelection(tab->sci, replacement, options);
     }
     findNext(true);
 }
@@ -1300,10 +1302,11 @@ void App::replaceAll() {
     search::Options options;
     options.matchCase = findBar_.matchCase();
     options.wholeWord = findBar_.wholeWord();
+    options.regex = findBar_.regex();
     search::SetOptions(tab->sci, options);
 
     HCURSOR oldCursor = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-    const long long count = search::ReplaceAll(tab->sci, query, replacement);
+    const long long count = search::ReplaceAll(tab->sci, query, replacement, options);
     SetCursor(oldCursor);
 
     if (count == 0) {
