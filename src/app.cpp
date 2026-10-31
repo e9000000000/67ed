@@ -18,11 +18,13 @@
 #include "commands.h"
 #include "editor.h"
 #include "fileio.h"
+#include "ipc.h"
 #include "json.h"
 #include "linenav.h"
 #include "search.h"
 #include "theme.h"
 #include "util.h"
+#include "windowrect.h"
 
 namespace {
 
@@ -169,16 +171,18 @@ bool App::create(const std::vector<std::wstring>& initialPaths) {
     if (haveSession && session.hasWindow) {
         RECT work{};
         SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
-        int width = session.window.right - session.window.left;
-        int height = session.window.bottom - session.window.top;
-        width = std::min(width, std::max(640, static_cast<int>(work.right - work.left) - 40));
-        height = std::min(height, std::max(400, static_cast<int>(work.bottom - work.top) - 40));
-        int left = session.window.left;
-        int top = session.window.top;
-        if (MonitorFromRect(&session.window, MONITOR_DEFAULTTONULL)) {
-            left = std::clamp(left, static_cast<int>(work.left), std::max(static_cast<int>(work.left), static_cast<int>(work.right) - width));
-            top = std::clamp(top, static_cast<int>(work.top), std::max(static_cast<int>(work.top), static_cast<int>(work.bottom) - height));
-            SetWindowPos(hwnd_, nullptr, left, top, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+        const HMONITOR monitor = MonitorFromRect(&session.window, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO info{};
+        info.cbSize = sizeof(info);
+        if (monitor && GetMonitorInfoW(monitor, &info)) {
+            work = info.rcWork;
+        }
+        const RECT placedRect = windowrect::ClampToWork(session.window, work);
+        const int width = static_cast<int>(placedRect.right - placedRect.left);
+        const int height = static_cast<int>(placedRect.bottom - placedRect.top);
+        if (width >= 320 && height >= 240) {
+            SetWindowPos(hwnd_, nullptr, placedRect.left, placedRect.top, width, height,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
             placed = true;
         }
     }
@@ -1738,23 +1742,8 @@ void App::handleCopyData(LPARAM lParam) {
         return;
     }
     const size_t count = copy->cbData / sizeof(wchar_t);
-    const wchar_t* data = static_cast<const wchar_t*>(copy->lpData);
-    std::vector<std::wstring> paths;
-    std::wstring current;
-    for (size_t i = 0; i < count; ++i) {
-        const wchar_t c = data[i];
-        if (c == L'\0') {
-            if (!current.empty()) {
-                paths.push_back(current);
-                current.clear();
-            }
-        } else {
-            current.push_back(c);
-        }
-    }
-    if (!current.empty()) {
-        paths.push_back(current);
-    }
+    const auto* data = static_cast<const wchar_t*>(copy->lpData);
+    const std::vector<std::wstring> paths = ParsePathPayload(data, count);
 
     if (IsIconic(hwnd_)) {
         ShowWindow(hwnd_, SW_RESTORE);

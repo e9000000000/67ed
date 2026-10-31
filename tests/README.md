@@ -15,13 +15,14 @@ a log file. No editor window appears, and no message boxes are shown.
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-selftest.ps1
 ```
 
-Covers CLI parsing, accelerator wiring, JSON parse/dump, UTF-8/UTF-16LE/BE/ANSI
-round-trips, BOM and EOL handling, session serialization, Scintilla
-set/get/find/backward-find/undo, and the search/replace engine (current, all, case,
-whole word, regex with capture groups, expanding and empty replacements),
-go-to-line parsing/clamping, insert/overwrite, file-change stamps, recent-file
-ordering, tab-reorder arithmetic, read-only rejection, and crash-log writing.
-Expected final line: `summary passed=136 failed=0`.
+Covers CLI parsing, accelerator wiring, single-instance payload round-trips,
+window-rectangle clamping, JSON parse/dump, UTF-8/UTF-16LE/BE/ANSI round-trips, BOM
+and EOL handling, session serialization, Scintilla set/get/find/backward-find/undo,
+and the search/replace engine (current, all, case, whole word, regex with capture
+groups, expanding and empty replacements), go-to-line parsing/clamping,
+insert/overwrite, file-change stamps, recent-file ordering, tab-reorder
+arithmetic, read-only rejection, and crash-log writing. Expected final line:
+`summary passed=144 failed=0`.
 
 ## Headless bench
 

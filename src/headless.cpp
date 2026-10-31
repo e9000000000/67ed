@@ -26,6 +26,7 @@
 #include "fileio.h"
 #include "filewatch.h"
 #include "findbar.h"
+#include "ipc.h"
 #include "json.h"
 #include "linebar.h"
 #include "linenav.h"
@@ -37,6 +38,7 @@
 #include "tabbar.h"
 #include "taborder.h"
 #include "util.h"
+#include "windowrect.h"
 
 namespace {
 
@@ -230,6 +232,43 @@ void TestAccelerators(TestLog& log) {
     if (table) {
         DestroyAcceleratorTable(table);
     }
+}
+
+void TestIpc(TestLog& log) {
+    const std::vector<std::wstring> paths{L"C:\\a.txt", L"D:\\b b.txt"};
+    const std::wstring payload = BuildPathPayload(paths);
+    const std::vector<std::wstring> parsed = ParsePathPayload(payload.data(), payload.size());
+    log.check(parsed.size() == 2 && parsed[0] == paths[0] && parsed[1] == paths[1],
+              "ipc.roundtrip");
+
+    const std::wstring empty = BuildPathPayload({});
+    log.check(empty.size() == 1 && ParsePathPayload(empty.data(), empty.size()).empty(),
+              "ipc.empty");
+
+    const std::wstring unicodePath = L"C:\\na\u00EFve\\\u65E5\u672C\u8A9E.txt";
+    const std::wstring unicodePayload = BuildPathPayload({unicodePath});
+    const auto unicodeParsed = ParsePathPayload(unicodePayload.data(), unicodePayload.size());
+    log.check(unicodeParsed.size() == 1 && unicodeParsed[0] == unicodePath, "ipc.unicode");
+
+    const std::wstring raw{L'a', L'\0', L'b'};
+    const auto rawParsed = ParsePathPayload(raw.data(), raw.size());
+    log.check(rawParsed.size() == 2 && rawParsed[0] == L"a" && rawParsed[1] == L"b",
+              "ipc.unterminated");
+}
+
+void TestWindowRect(TestLog& log) {
+    const RECT work{0, 0, 1920, 1080};
+    const RECT inside = windowrect::ClampToWork(RECT{100, 100, 900, 700}, work);
+    log.check(inside.left == 100 && inside.top == 100 && inside.right == 900 && inside.bottom == 700,
+              "windowrect.inside");
+    const RECT offscreen = windowrect::ClampToWork(RECT{1000, 600, 3000, 2000}, work);
+    log.check(offscreen.left == 40 && offscreen.top == 40 &&
+              offscreen.right == 1920 && offscreen.bottom == 1080, "windowrect.offscreen");
+    const RECT negative = windowrect::ClampToWork(RECT{-200, -100, 800, 700}, work);
+    log.check(negative.left == 0 && negative.top == 0 &&
+              negative.right == 1000 && negative.bottom == 800, "windowrect.negative");
+    const RECT oversized = windowrect::ClampToWork(RECT{0, 0, 5000, 4000}, work);
+    log.check(oversized.right == 1880 && oversized.bottom == 1040, "windowrect.oversized");
 }
 
 void TestJson(TestLog& log) {
@@ -684,6 +723,8 @@ int RunSelfTest(const std::wstring& logPath) {
 
     TestCli(log);
     TestAccelerators(log);
+    TestIpc(log);
+    TestWindowRect(log);
     TestJson(log);
     TestFileIo(log, dir);
     TestSession(log, dir);

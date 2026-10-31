@@ -11,6 +11,7 @@
 #include "cli.h"
 #include "crashlog.h"
 #include "headless.h"
+#include "ipc.h"
 #include "util.h"
 
 namespace {
@@ -34,19 +35,12 @@ bool SendToRunningInstance(const std::vector<std::wstring>& paths) {
 
     AllowSetForegroundWindow(ASFW_ANY);
 
-    std::wstring payload;
-    for (const auto& path : paths) {
-        payload += path;
-        payload.push_back(L'\0');
-    }
-    if (paths.empty()) {
-        payload.push_back(L'\0');
-    }
+    const std::wstring payload = BuildPathPayload(paths);
 
     COPYDATASTRUCT copy{};
     copy.dwData = kCopyDataTag;
     copy.cbData = static_cast<DWORD>(payload.size() * sizeof(wchar_t));
-    copy.lpData = payload.data();
+    copy.lpData = const_cast<wchar_t*>(payload.data());
     return SendMessageW(target, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&copy)) == TRUE;
 }
 

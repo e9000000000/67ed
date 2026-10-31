@@ -7,7 +7,7 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 ## Current state
 
 M0–M3 are complete and M4 is in progress. The app builds as a single x64 executable
-(~1.43 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
+(~1.44 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
 numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
@@ -53,6 +53,7 @@ src/
   main.cpp          WinMain, single-instance gate, Scintilla registration
   cli.*             command-line option parsing
   accel.*           application accelerator table
+  ipc.*             single-instance path payload encode/decode
   app.*             main window, commands, tabs, layout, menu, session wiring
   menubar.*         custom dark menu bar and owner-drawn popups
   tabbar.*          custom dark tab strip
@@ -66,6 +67,7 @@ src/
   filewatch.*       external file-change stamps
   crashlog.*        unhandled-exception log
   session.*         session/settings persistence, recovery snapshots
+  windowrect.*      monitor work-area clamping for restored windows
   json.*            small JSON value/parser/serializer
   theme.h           palette and UI metrics
   util.*            string/UTF conversions, paths, errors, dark-mode helpers
@@ -146,8 +148,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
 - `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
   set/get/find/undo, search/replace (plain and regex), line navigation,
   insert/overwrite, file-change stamps, recent-file ordering, tab reordering,
-  read-only handling, crash-log writing, CLI parsing, accelerator wiring, and
-  chunked save. Expect `summary passed=136 failed=0`.
+  read-only handling, crash-log writing, CLI parsing, accelerator wiring,
+  single-instance payloads, window clamping, and chunked save. Expect
+  `summary passed=144 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
