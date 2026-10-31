@@ -658,7 +658,7 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     DestroyWindow(host);
 }
 
-void TestSettings(TestLog& log) {
+void TestSettings(TestLog& log, const fs::path& dir) {
     Settings settings;
     AddRecentFile(settings, L"C:\\recent\\one.txt");
     AddRecentFile(settings, L"C:\\recent\\two.txt");
@@ -676,6 +676,43 @@ void TestSettings(TestLog& log) {
               L"file.txt  \u2014  Documents", "recent.label");
     log.check(CompactPathLabel(L"C:\\file.txt") == L"file.txt", "recent.label.root");
     log.check(CompactPathLabel(L"file.txt") == L"file.txt", "recent.label.relative");
+
+    Settings saved;
+    saved.fontFamily = L"Consolas";
+    saved.fontSize = 13;
+    saved.extraLeading = 2;
+    saved.tabWidth = 8;
+    saved.useSpaces = true;
+    saved.wrap = false;
+    saved.lineNumbers = false;
+    saved.zoom = 2;
+    saved.recent = {L"C:\\x.txt"};
+    const fs::path settingsPath = dir / "settings.json";
+    log.check(SaveSettingsFile(settingsPath.wstring(), saved), "settings.save");
+    Settings loaded;
+    log.check(LoadSettingsFile(settingsPath.wstring(), loaded), "settings.load");
+    log.check(loaded.fontFamily == L"Consolas" && loaded.fontSize == 13 &&
+              loaded.extraLeading == 2 && loaded.tabWidth == 8 && loaded.useSpaces &&
+              !loaded.wrap && !loaded.lineNumbers && loaded.zoom == 2 &&
+              loaded.recent.size() == 1, "settings.roundtrip");
+
+    Settings invalid;
+    invalid.fontSize = 999;
+    invalid.tabWidth = 0;
+    invalid.extraLeading = 99;
+    invalid.zoom = 999;
+    const fs::path invalidPath = dir / "settings-invalid.json";
+    log.check(SaveSettingsFile(invalidPath.wstring(), invalid), "settings.invalid.save");
+    Settings clamped;
+    log.check(LoadSettingsFile(invalidPath.wstring(), clamped) &&
+              clamped.fontSize == 11 && clamped.tabWidth == 4 &&
+              clamped.extraLeading == 16 && clamped.zoom == 30, "settings.clamped");
+
+    const fs::path corruptPath = dir / "settings-corrupt.json";
+    log.check(WriteBytes(corruptPath, "{broken"), "settings.corrupt.write");
+    Settings corrupt;
+    log.check(!LoadSettingsFile(corruptPath.wstring(), corrupt), "settings.corrupt.rejected");
+    log.check(FileExists(corruptPath.wstring() + L".bad"), "settings.corrupt.backup");
 }
 
 void TestTabOrder(TestLog& log) {
@@ -814,7 +851,7 @@ int RunSelfTest(const std::wstring& logPath) {
     TestJson(log);
     TestFileIo(log, dir);
     TestSession(log, dir);
-    TestSettings(log);
+    TestSettings(log, dir);
     TestScintilla(log, dir);
     TestTabOrder(log);
 

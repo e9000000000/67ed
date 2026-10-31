@@ -23,8 +23,8 @@ groups, expanding and empty replacements), go-to-line parsing/clamping,
 insert/overwrite, file-change stamps, recent-file ordering, tab-reorder
 arithmetic, read-only rejection, Unicode surrogate pairs, empty files,
 corrupt-session backup, recent-label formatting, find/line bar state, editor
-setting application, and crash-log writing. Expected final line:
-`summary passed=175 failed=0`.
+setting application, settings round-trip/clamping/backup, and crash-log writing.
+Expected final line: `summary passed=183 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).

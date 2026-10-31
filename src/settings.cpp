@@ -76,13 +76,17 @@ bool WriteFileAtomic(const std::wstring& path, std::string_view data, std::wstri
 }  // namespace
 
 bool LoadSettings(Settings& settings) {
-    const std::wstring path = DataDirectory() + L"\\settings.json";
+    return LoadSettingsFile(DataDirectory() + L"\\settings.json", settings);
+}
+
+bool LoadSettingsFile(const std::wstring& path, Settings& settings) {
     std::string text;
     if (!ReadSmallFile(path, text)) {
         return false;
     }
     Json root;
     if (!Json::parse(text, root) || !root.isObject()) {
+        MoveFileExW(path.c_str(), (path + L".bad").c_str(), MOVEFILE_REPLACE_EXISTING);
         return false;
     }
     settings.fontFamily = Utf8ToWide(root["fontFamily"].asString("Cascadia Mono"));
@@ -109,10 +113,16 @@ bool LoadSettings(Settings& settings) {
     if (settings.tabWidth < 1 || settings.tabWidth > 16) {
         settings.tabWidth = 4;
     }
+    settings.extraLeading = std::clamp(settings.extraLeading, 0, 16);
+    settings.zoom = std::clamp(settings.zoom, -10, 30);
     return true;
 }
 
 bool SaveSettings(const Settings& settings) {
+    return SaveSettingsFile(DataDirectory() + L"\\settings.json", settings);
+}
+
+bool SaveSettingsFile(const std::wstring& path, const Settings& settings) {
     Json root = Json::MakeObject();
     root["fontFamily"] = Json(WideToUtf8(settings.fontFamily));
     root["fontSize"] = Json(settings.fontSize);
@@ -123,15 +133,12 @@ bool SaveSettings(const Settings& settings) {
     root["lineNumbers"] = Json(settings.lineNumbers);
     root["zoom"] = Json(settings.zoom);
     Json recent = Json::MakeArray();
-    for (const auto& path : settings.recent) {
-        recent.push(Json(WideToUtf8(path)));
+    for (const auto& recentPath : settings.recent) {
+        recent.push(Json(WideToUtf8(recentPath)));
     }
     root["recent"] = std::move(recent);
     std::wstring error;
-    if (!WriteFileAtomic(DataDirectory() + L"\\settings.json", root.dump(2), error)) {
-        return false;
-    }
-    return true;
+    return WriteFileAtomic(path, root.dump(2), error);
 }
 
 void AddRecentFile(Settings& settings, const std::wstring& path) {

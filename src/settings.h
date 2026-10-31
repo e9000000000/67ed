@@ -17,4 +17,6 @@ struct Settings {
 
 bool LoadSettings(Settings& settings);
 bool SaveSettings(const Settings& settings);
+bool LoadSettingsFile(const std::wstring& path, Settings& settings);
+bool SaveSettingsFile(const std::wstring& path, const Settings& settings);
 void AddRecentFile(Settings& settings, const std::wstring& path);
