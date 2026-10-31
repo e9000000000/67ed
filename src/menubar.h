@@ -16,6 +16,8 @@ struct MenuState {
     bool hasSelection = false;
     bool readOnly = false;
     bool overtype = false;
+    int tabWidth = 4;
+    bool useSpaces = false;
     EolMode eol = EolMode::Crlf;
     std::vector<std::wstring> recent;
 };

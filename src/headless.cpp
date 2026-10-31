@@ -511,6 +511,17 @@ void TestScintilla(TestLog& log, const fs::path& dir) {
     }
     editor::ApplySettings(sci, TestSettings());
 
+    Settings tweak = TestSettings();
+    tweak.tabWidth = 8;
+    tweak.useSpaces = true;
+    tweak.extraLeading = 3;
+    editor::ApplySettings(sci, tweak);
+    log.check(SendMessageW(sci, SCI_GETTABWIDTH, 0, 0) == 8, "editor.tabwidth");
+    log.check(SendMessageW(sci, SCI_GETUSETABS, 0, 0) == 0, "editor.spaces");
+    log.check(SendMessageW(sci, SCI_GETEXTRAASCENT, 0, 0) == 3 &&
+              SendMessageW(sci, SCI_GETEXTRADESCENT, 0, 0) == 3, "editor.leading");
+    editor::ApplySettings(sci, TestSettings());
+
     const std::string sample = "alpha beta alpha gamma";
     editor::SetText(sci, sample);
     log.check(editor::GetText(sci) == sample, "scintilla.setget");

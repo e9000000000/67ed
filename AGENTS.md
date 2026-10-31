@@ -10,11 +10,12 @@ M0–M3 are complete and M4 is in progress. The app builds as a single x64 execu
 (~1.45 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
-numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
-Shift+F3, match case, whole word, regex, replace all), go-to-line (Ctrl+G),
-insert/overwrite (Insert), tab drag-reorder and context menu, a recent-files menu,
-external-change watching/reload, crash logging, best-effort dark file dialogs,
-and dirty-buffer crash recovery. 100 MB files are measured in `docs/PERF.md`.
+numbers/EOL/zoom, the font dialog, tab width / indent-with-spaces / line-spacing
+controls, a find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3, match case, whole word,
+regex, replace all), go-to-line (Ctrl+G), insert/overwrite (Insert), tab
+drag-reorder and context menu, a recent-files menu, external-change
+watching/reload, crash logging, best-effort dark file dialogs, and dirty-buffer
+crash recovery. 100 MB files are measured in `docs/PERF.md`.
 
 Known gaps: optional file associations, final DPI/visual pass, and visible-window
 startup measurement.
@@ -151,8 +152,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
   insert/overwrite, file-change stamps, recent-file ordering, tab reordering,
   read-only handling, crash-log writing, CLI parsing, accelerator wiring,
   single-instance payloads, window clamping, Unicode surrogate pairs, corrupt
-  session backup, recent labels, find/line bars, and chunked save. Expect
-  `summary passed=172 failed=0`.
+  session backup, recent labels, find/line bars, editor setting application, and
+  chunked save. Expect `summary passed=175 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.

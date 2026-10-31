@@ -177,13 +177,13 @@ recovery file; a crash leaves it for the next launch.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 172 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 175 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
-  stamps, recent files/labels, tab reordering, find/line bar state, window
-  clamping, read-only handling, crash-log writing, Unicode surrogate pairs, empty
-  files, corrupt-session backup, and chunked save. No editor window or message box
-  appears.
+  stamps, recent files/labels, tab reordering, find/line bar state, editor setting
+  application, window clamping, read-only handling, crash-log writing, Unicode
+  surrogate pairs, empty files, corrupt-session backup, and chunked save. No editor
+  window or message box appears.
 - `--bench <path>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - Runner scripts: `tests/run-selftest.ps1`, `tests/run-bench.ps1`,

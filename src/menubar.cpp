@@ -187,6 +187,14 @@ void MenuBar::rebuildMenus() {
     view.items.push_back(MakeSeparator());
     view.items.push_back(MakeItem(kCmdReload, L"Reload from Disk", L"Ctrl+R", has));
     view.items.push_back(MakeItem(kCmdFont, L"Font...", L"", true));
+    view.items.push_back(MakeSeparator());
+    view.items.push_back(MakeItem(kCmdTabWidth2, L"Tab Width: 2", L"", true, state_.tabWidth == 2));
+    view.items.push_back(MakeItem(kCmdTabWidth4, L"Tab Width: 4", L"", true, state_.tabWidth == 4));
+    view.items.push_back(MakeItem(kCmdTabWidth8, L"Tab Width: 8", L"", true, state_.tabWidth == 8));
+    view.items.push_back(MakeItem(kCmdUseSpaces, L"Indent with Spaces", L"", true, state_.useSpaces));
+    view.items.push_back(MakeSeparator());
+    view.items.push_back(MakeItem(kCmdLeadingUp, L"More Line Spacing", L"", true));
+    view.items.push_back(MakeItem(kCmdLeadingDown, L"Less Line Spacing", L"", true));
     menus_.push_back(std::move(view));
 
     MenuDef help;

@@ -257,6 +257,8 @@ void App::refreshMenuState() {
     }
     state.recent.assign(settings_.recent.begin(),
                         settings_.recent.begin() + std::min<size_t>(settings_.recent.size(), 8));
+    state.tabWidth = settings_.tabWidth;
+    state.useSpaces = settings_.useSpaces;
     menuBar_.setState(state);
 }
 
@@ -438,6 +440,28 @@ void App::onCommand(UINT id) {
         break;
     case kCmdFont:
         showFontDialog();
+        break;
+    case kCmdTabWidth2:
+    case kCmdTabWidth4:
+    case kCmdTabWidth8:
+        settings_.tabWidth = id == kCmdTabWidth2 ? 2 : (id == kCmdTabWidth8 ? 8 : 4);
+        applySettingsToAll();
+        SaveSettings(settings_);
+        markSessionDirty();
+        break;
+    case kCmdUseSpaces:
+        settings_.useSpaces = !settings_.useSpaces;
+        applySettingsToAll();
+        SaveSettings(settings_);
+        markSessionDirty();
+        break;
+    case kCmdLeadingUp:
+    case kCmdLeadingDown:
+        settings_.extraLeading = std::clamp(settings_.extraLeading +
+                                            (id == kCmdLeadingUp ? 1 : -1), 0, 16);
+        applySettingsToAll();
+        SaveSettings(settings_);
+        markSessionDirty();
         break;
     case kCmdNextTab:
         if (!tabs_.empty()) {

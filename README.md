@@ -25,7 +25,8 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
   scroll, wrap, window placement)
 - Open via CLI, file dialog, or drag-and-drop; Save / Save As; duplicate-path focus
 - Single instance: a later launch adds a tab to the running window and exits
-- Word wrap, line numbers, EOL conversion, zoom, font dialog
+- Word wrap, line numbers, EOL conversion, zoom, font dialog, tab width,
+  indent-with-spaces, line spacing
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
 - Go to line: Ctrl+G
