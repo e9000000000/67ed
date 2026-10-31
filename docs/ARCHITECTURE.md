@@ -182,7 +182,7 @@ recovery file; a crash leaves it for the next launch.
   insert/overwrite, file-change stamps, recent files, tab reordering, read-only
   handling, crash-log writing, and chunked save. No editor window or message box
   appears.
-- Fixture generator: `--make-fixture <path> <MB> [--one-line]`.
-- Bench: `--bench <path>` opens hidden, reports open/RSS/scroll/find/save and RSS
-  after save.
-- Runner scripts: `tests/run-selftest.ps1`, `tests/run-bench.ps1`.
+- `--bench <path>`: internal open/RSS/find/scroll/save timings on a real file.
+- `--bench-startup`: hidden chrome/editor construction time and RSS.
+- Runner scripts: `tests/run-selftest.ps1`, `tests/run-bench.ps1`,
+  `tests/run-startup.ps1`.

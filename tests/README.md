@@ -37,6 +37,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1 `
 Reports internal `read_ms`, `set_text_ms`, `open_ms`, RSS, find/scroll, and chunked
 `save_ms` numbers. Current values are in `docs/PERF.md`.
 
+## Headless startup bench
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
+```
+
+Builds the hidden chrome and one Scintilla control, then reports construction time
+and RSS. No window is shown.
+
 ## Fixtures
 
 ```powershell

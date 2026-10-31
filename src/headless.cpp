@@ -22,11 +22,16 @@
 #include "editor.h"
 #include "fileio.h"
 #include "filewatch.h"
+#include "findbar.h"
 #include "json.h"
+#include "linebar.h"
 #include "linenav.h"
+#include "menubar.h"
 #include "search.h"
 #include "session.h"
 #include "settings.h"
+#include "statusbar.h"
+#include "tabbar.h"
 #include "taborder.h"
 #include "util.h"
 
@@ -648,6 +653,63 @@ int RunBench(const std::wstring& filePath, const std::wstring& logPath) {
         return 1;
     }
     return RunBenchImpl(filePath, logPath);
+}
+
+int RunStartupBench(const std::wstring& logPath) {
+    TestLog log(logPath.empty() ? DefaultLogPath(L"67ed-startup.log") : logPath);
+    if (!log.ok()) {
+        return 1;
+    }
+    log.info("mode=startup time=" + NowText());
+
+    const auto start = Clock::now();
+    HWND host = CreateHost();
+    if (!host) {
+        log.info("FAIL host window");
+        return 1;
+    }
+    const HINSTANCE instance = GetModuleHandleW(nullptr);
+
+    MenuBar menuBar;
+    TabBar tabBar;
+    StatusBar statusBar;
+    FindBar findBar;
+    LineBar lineBar;
+    const bool created = menuBar.create(host, instance) &&
+                         tabBar.create(host, instance) &&
+                         statusBar.create(host, instance) &&
+                         findBar.create(host, instance) &&
+                         lineBar.create(host, instance);
+    HWND sci = created ? editor::Create(host, instance) : nullptr;
+    if (!created || !sci) {
+        log.info("FAIL chrome creation");
+        DestroyWindow(host);
+        return 1;
+    }
+
+    menuBar.layout(0, 0, 1200, 30);
+    tabBar.layout(0, 30, 1200, 34);
+    statusBar.layout(0, 776, 1200, 24);
+    findBar.layout(0, 736, 1200, 40);
+    lineBar.layout(0, 736, 1200, 40);
+    editor::ApplySettings(sci, TestSettings());
+    editor::SetText(sci, "startup benchmark");
+    const auto end = Clock::now();
+
+    PROCESS_MEMORY_COUNTERS_EX memory{};
+    memory.cb = sizeof(memory);
+    GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory),
+                         sizeof(memory));
+    const double ms = std::chrono::duration<double, std::milli>(end - start).count();
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(1);
+    out << "chrome_ms=" << ms << "\n";
+    out << "rss_mb=" << (memory.WorkingSetSize / (1024.0 * 1024.0)) << "\n";
+    log.info(out.str());
+
+    DestroyWindow(sci);
+    DestroyWindow(host);
+    return 0;
 }
 
 int MakeFixture(const std::wstring& filePath, int megabytes, bool oneLine, const std::wstring& logPath) {

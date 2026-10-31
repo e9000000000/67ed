@@ -22,6 +22,7 @@ struct LaunchOptions {
     std::vector<std::wstring> paths;
     bool selfTest = false;
     bool bench = false;
+    bool startupBench = false;
     bool makeFixture = false;
     bool oneLine = false;
     std::wstring benchFile;
@@ -76,6 +77,8 @@ LaunchOptions ParseOptions() {
         const std::wstring arg = argv[i];
         if (arg == L"--selftest") {
             options.selfTest = true;
+        } else if (arg == L"--bench-startup") {
+            options.startupBench = true;
         } else if (arg == L"--bench" && i + 1 < argc) {
             options.bench = true;
             options.benchFile = argv[++i];
@@ -116,7 +119,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
 
     const LaunchOptions options = ParseOptions();
 
-    if (options.selfTest || options.bench || options.makeFixture) {
+    if (options.selfTest || options.bench || options.startupBench || options.makeFixture) {
         if (!Scintilla_RegisterClasses(instance)) {
             return 1;
         }
@@ -125,6 +128,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
             result = RunSelfTest(options.logPath);
         } else if (options.bench) {
             result = RunBench(options.benchFile, options.logPath);
+        } else if (options.startupBench) {
+            result = RunStartupBench(options.logPath);
         } else {
             result = MakeFixture(options.fixturePath, options.megabytes, options.oneLine, options.logPath);
         }

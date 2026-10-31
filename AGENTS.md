@@ -7,7 +7,7 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 ## Current state
 
 M0–M3 are complete and M4 is in progress. The app builds as a single x64 executable
-(~1.42 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
+(~1.43 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
 numbers/EOL/zoom, the font dialog, a find/replace bar (Ctrl+F, Ctrl+H, F3,
@@ -78,6 +78,7 @@ docs/
 tests/
   run-selftest.ps1  headless self-test runner
   run-bench.ps1     hidden fixture + benchmark runner
+  run-startup.ps1   hidden chrome construction benchmark
 ```
 
 ## Non-negotiable rules
@@ -137,6 +138,7 @@ boxes. Do not drive the GUI with repeated window popups.
 .\build.bat
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-selftest.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
 ```
 
 - `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
@@ -145,8 +147,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
   read-only handling, crash-log writing, and chunked save. Expect
   `summary passed=124 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
+- `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
-- All three accept `--log <path>`.
+- All of these accept `--log <path>`.
 - Manual smoke: tabs, dirty close prompts, restart restore, second launch, DPI
   125/150/200%, UTF-8/UTF-16/ANSI files, CRLF/LF, read-only files.
 

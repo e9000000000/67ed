@@ -30,7 +30,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1 `
 
 | Metric | Result |
 |---|---|
-| EXE size | 1,489,408 bytes (1.42 MiB) |
+| EXE size | 1,494,528 bytes (1.43 MiB) |
 | Read + decode | 264 ms |
 | Load into Scintilla (`SCI_ADDTEXT`) | 163 ms |
 | Open total (read + load) | 440 ms |
@@ -55,6 +55,20 @@ flat at ~210 MB, inside the 300 MB budget.
 | RSS after open | 53 MB |
 | Save | 104 ms |
 | RSS after save | 53 MB |
+
+## Startup chrome (2026-11-01)
+
+`--bench-startup` creates the hidden host, menu bar, tab strip, status bar, find
+bar, line bar, and one themed Scintilla control. It does not load settings,
+session, or a file.
+
+| Metric | Result |
+|---|---|
+| Chrome + editor construction | 9–27 ms |
+| RSS after construction | 13.6 MB |
+
+This is the in-process chrome cost only. Process startup, session restore, and
+file loading are excluded; visible-window time is still unmeasured.
 
 ## Earlier UI run (2026-10-31)
 

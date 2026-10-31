@@ -317,7 +317,15 @@ void App::onCommand(UINT id) {
         break;
     case kCmdReload:
         if (tab && !tab->path.empty()) {
-            reloadTabFromDisk(*tab, false);
+            if (tab->dirty) {
+                const int answer = MessageBoxW(hwnd_,
+                    (L"Discard unsaved changes and reload '" + tab->displayName + L"'?").c_str(),
+                    kAppName, MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
+                if (answer != IDYES) {
+                    break;
+                }
+            }
+            reloadTabFromDisk(*tab, true);
         }
         break;
     case kCmdSave:
