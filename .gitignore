@@ -1,0 +1,29 @@
+# build output
+/build/
+/out/
+*.obj
+*.res
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.exe
+*.dll
+
+# third-party build artifacts (keep source)
+/third_party/scintilla/bin/
+/third_party/scintilla/win32/obj/
+/third_party/scintilla/win32/*.res
+
+# editor / OS noise
+.vs/
+.vscode/
+*.user
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# local scratch
+/tmp/
+/scratch/
+*.log

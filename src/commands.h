@@ -1,0 +1,35 @@
+#pragma once
+
+// Command IDs shared by the menu bar, accelerators, and the app.
+// Menu/accelerator IDs must fit in 16 bits for WM_COMMAND.
+enum : unsigned int {
+    kCmdNew = 1001,
+    kCmdOpen,
+    kCmdSave,
+    kCmdSaveAs,
+    kCmdCloseTab,
+    kCmdExit,
+    kCmdUndo,
+    kCmdRedo,
+    kCmdCut,
+    kCmdCopy,
+    kCmdPaste,
+    kCmdSelectAll,
+    kCmdTimeDate,
+    kCmdWrap,
+    kCmdLineNumbers,
+    kCmdEolCrlf,
+    kCmdEolLf,
+    kCmdEolCr,
+    kCmdZoomIn,
+    kCmdZoomOut,
+    kCmdZoomReset,
+    kCmdFont,
+    kCmdNextTab,
+    kCmdPrevTab,
+    kCmdAbout,
+    kCmdMenuFile,
+    kCmdMenuEdit,
+    kCmdMenuView,
+    kCmdMenuHelp,
+};
