@@ -10,11 +10,12 @@ M0 is complete and M1 is in progress. The app builds as a single x64 executable
 (~1.37 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
-numbers/EOL/zoom, the font dialog, and a find bar (Ctrl+F, F3, Shift+F3, match case,
-whole word). 100 MB files are measured in `docs/PERF.md`.
+numbers/EOL/zoom, the font dialog, a find bar (Ctrl+F, F3, Shift+F3, match case,
+whole word), and dirty-buffer crash recovery. 100 MB files are measured in
+`docs/PERF.md`.
 
-Known gaps: find-bar replacement and regex, go-to-line, dirty-buffer recovery
-snapshots, tab drag-reorder/context menu, dark native file dialogs.
+Known gaps: find-bar replacement and regex, go-to-line, tab drag-reorder/context
+menu, dark native file dialogs.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
 
 ## Build

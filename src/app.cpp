@@ -25,6 +25,10 @@ namespace {
 constexpr wchar_t kMainClass[] = L"67edMainWindow";
 constexpr wchar_t kAppName[] = L"67ed";
 constexpr UINT_PTR kTimerSession = 1;
+constexpr UINT_PTR kTimerRecovery = 2;
+constexpr UINT kRecoveryIntervalMs = 5000;
+constexpr unsigned long long kLargeBufferBytes = 32ull * 1024ull * 1024ull;
+constexpr ULONGLONG kLargeRecoveryIntervalMs = 60000;
 constexpr ULONG_PTR kCopyDataTag = 0x67ED;
 
 sptr_t Sci(Tab* tab, unsigned int message, uptr_t wParam = 0, sptr_t lParam = 0) {
@@ -47,8 +51,11 @@ std::wstring MakeTabId() {
     return L"t" + std::to_wstring(GetTickCount64()) + L"-" + std::to_wstring(++counter);
 }
 
-void CenterWindow(HWND hwnd, int width, int height) {
-    RECT work{};
+std::wstring RecoveryDirectory() {
+    return DataDirectory() + L"\\recovery";
+}
+
+void CenterWindow(HWND hwnd, int width, int height) {    RECT work{};
     SystemParametersInfoW(SPI_GETWORKAREA, 0, &work, 0);
     const int workWidth = work.right - work.left;
     const int workHeight = work.bottom - work.top;
@@ -421,6 +428,7 @@ void App::saveSession() {
     if (!hwnd_ || closing_) {
         return;
     }
+    snapshotRecovery();
     for (auto& tab : tabs_) {
         if (tab->loaded) {
             captureTabState(*tab);
@@ -431,8 +439,9 @@ void App::saveSession() {
     int savedActive = -1;
     for (size_t i = 0; i < tabs_.size(); ++i) {
         const Tab& tab = *tabs_[i];
-        // Empty untitled buffers are not session state; dirty recovery lands in M3.
-        if (tab.untitled && tab.path.empty()) {
+        // Empty untitled buffers are not session state. Dirty untitled buffers
+        // survive through their recovery file.
+        if (tab.untitled && tab.path.empty() && tab.recovery.empty()) {
             continue;
         }
         TabSession item;
@@ -450,9 +459,7 @@ void App::saveSession() {
         item.encoding = tab.encoding;
         item.bom = tab.bom;
         item.eol = tab.eol;
-        // Dirty buffers are not persisted until the recovery journal lands.
-        // Graceful exit saves or discards them via prompts.
-        item.dirty = false;
+        item.dirty = tab.dirty && !tab.recovery.empty();
         if (static_cast<int>(i) == active_) {
             savedActive = static_cast<int>(session.tabs.size());
         }
@@ -477,6 +484,88 @@ void App::markSessionDirty() {
     if (hwnd_ && !closing_) {
         SetTimer(hwnd_, kTimerSession, 1200, nullptr);
     }
+}
+
+std::wstring App::recoveryPath(const Tab& tab) const {
+    if (tab.recovery.empty()) {
+        return {};
+    }
+    return RecoveryDirectory() + L"\\" + tab.recovery;
+}
+
+void App::noteBufferDirty(Tab& tab) {
+    if (closing_ || !hwnd_) {
+        return;
+    }
+    tab.needsSnapshot = true;
+    tab.lastEditTick = GetTickCount64();
+    if (!recoveryTimerActive_) {
+        SetTimer(hwnd_, kTimerRecovery, kRecoveryIntervalMs, nullptr);
+        recoveryTimerActive_ = true;
+    }
+}
+
+bool App::snapshotRecovery() {
+    if (closing_) {
+        return false;
+    }
+    const ULONGLONG now = GetTickCount64();
+    bool pending = false;
+    bool wrote = false;
+    bool directoryReady = false;
+    for (auto& tabPtr : tabs_) {
+        Tab& tab = *tabPtr;
+        if (!tab.loaded || !tab.sci || !tab.needsSnapshot) {
+            continue;
+        }
+        if (!tab.dirty) {
+            tab.needsSnapshot = false;
+            continue;
+        }
+        pending = true;
+
+        const unsigned long long length = editor::Length(tab.sci);
+        const bool large = length > kLargeBufferBytes;
+        const ULONGLONG interval = large ? kLargeRecoveryIntervalMs : kRecoveryIntervalMs;
+        // Small buffers wait for a typing pause; huge buffers are written at a
+        // fixed interval so a long typing burst still gets a snapshot.
+        if (!large && tab.lastEditTick != 0 && now - tab.lastEditTick < kRecoveryIntervalMs) {
+            continue;
+        }
+        if (tab.lastRecoveryTick != 0 && now - tab.lastRecoveryTick < interval) {
+            continue;
+        }
+
+        if (!directoryReady) {
+            EnsureDirectory(RecoveryDirectory());
+            directoryReady = true;
+        }
+        if (tab.recovery.empty()) {
+            tab.recovery = tab.id + L".txt";
+        }
+        std::wstring error;
+        if (editor::SaveDocument(tab.sci, recoveryPath(tab), Encoding::Utf8, false, error)) {
+            tab.lastRecoveryTick = now;
+            tab.needsSnapshot = false;
+            wrote = true;
+        }
+    }
+
+    if (!pending && recoveryTimerActive_) {
+        KillTimer(hwnd_, kTimerRecovery);
+        recoveryTimerActive_ = false;
+    }
+    return wrote;
+}
+
+void App::clearRecovery(Tab& tab) {
+    if (!tab.recovery.empty()) {
+        DeleteFileW(recoveryPath(tab).c_str());
+        tab.recovery.clear();
+    }
+    tab.needsSnapshot = false;
+    tab.lastRecoveryTick = 0;
+    tab.lastEditTick = 0;
 }
 
 void App::layout() {
@@ -660,51 +749,83 @@ bool App::ensureLoaded(int index) {
     local.zoom = tab.zoom;
     editor::ApplySettings(sci, local);
 
-    if (!tab.path.empty()) {
-        LoadedFile file;
+    bool recovered = false;
+    if (!tab.recovery.empty()) {
+        LoadedFile snapshot;
         std::wstring error;
         HCURSOR oldCursor = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-        const bool ok = LoadFile(tab.path, file, error);
+        const bool ok = LoadFile(recoveryPath(tab), snapshot, error);
         SetCursor(oldCursor);
-        if (!ok) {
-            DestroyWindow(sci);
-            ShowError(hwnd_, error);
-            return false;
+        if (ok) {
+            editor::SetText(sci, snapshot.text);
+            editor::SetEol(sci, tab.eol);
+            editor::SetReadOnly(sci, false);
+            if (snapshot.size > 16ull * 1024ull * 1024ull) {
+                tab.wrap = false;
+            }
+            tab.readOnly = false;
+            tab.dirty = true;
+            tab.needsSnapshot = false;
+            tab.displayName += L" (recovered)";
+            if (!tab.path.empty()) {
+                AddRecentFile(settings_, tab.path);
+            }
+            recovered = true;
+        } else {
+            // Recovery file vanished or is unreadable; fall back to the file.
+            tab.recovery.clear();
         }
-        if (file.binary) {
-            const int answer = MessageBoxW(hwnd_,
-                (L"'" + tab.path + L"' looks like a binary file. Open it anyway?").c_str(),
-                kAppName, MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
-            if (answer != IDYES) {
+    }
+
+    if (!recovered) {
+        if (!tab.path.empty()) {
+            LoadedFile file;
+            std::wstring error;
+            HCURSOR oldCursor = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
+            const bool ok = LoadFile(tab.path, file, error);
+            SetCursor(oldCursor);
+            if (!ok) {
                 DestroyWindow(sci);
+                ShowError(hwnd_, error);
                 return false;
             }
-        }
+            if (file.binary) {
+                const int answer = MessageBoxW(hwnd_,
+                    (L"'" + tab.path + L"' looks like a binary file. Open it anyway?").c_str(),
+                    kAppName, MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
+                if (answer != IDYES) {
+                    DestroyWindow(sci);
+                    return false;
+                }
+            }
 
-        editor::SetText(sci, file.text);
-        tab.encoding = file.encoding;
-        tab.bom = file.bom;
-        tab.eol = file.eol;
-        tab.readOnly = file.readOnly;
-        if (file.size > 16ull * 1024ull * 1024ull) {
-            tab.wrap = false;
+            editor::SetText(sci, file.text);
+            tab.encoding = file.encoding;
+            tab.bom = file.bom;
+            tab.eol = file.eol;
+            tab.readOnly = file.readOnly;
+            if (file.size > 16ull * 1024ull * 1024ull) {
+                tab.wrap = false;
+            }
+            editor::SetEol(sci, tab.eol);
+            editor::SetReadOnly(sci, tab.readOnly);
+            tab.displayName = FileNameOf(tab.path);
+            AddRecentFile(settings_, tab.path);
+        } else {
+            editor::SetText(sci, {});
+            editor::SetEol(sci, tab.eol);
+            editor::SetReadOnly(sci, false);
+            tab.readOnly = false;
         }
-        editor::SetEol(sci, tab.eol);
-        editor::SetReadOnly(sci, tab.readOnly);
-        tab.displayName = FileNameOf(tab.path);
-        AddRecentFile(settings_, tab.path);
-    } else {
-        editor::SetText(sci, {});
-        editor::SetEol(sci, tab.eol);
-        editor::SetReadOnly(sci, false);
-        tab.readOnly = false;
     }
 
     editor::SetWrap(sci, tab.wrap);
     editor::SetZoom(sci, tab.zoom);
     tab.sci = sci;
     tab.loaded = true;
-    tab.dirty = false;
+    if (!recovered) {
+        tab.dirty = false;
+    }
     restoreTabView(tab);
     ShowWindow(sci, SW_HIDE);
     updateTabBar();
@@ -733,7 +854,7 @@ void App::captureTabState(Tab& tab) {
     tab.firstVisibleLine = static_cast<int>(Sci(&tab, SCI_GETFIRSTVISIBLELINE));
     tab.xOffset = static_cast<int>(Sci(&tab, SCI_GETXOFFSET));
     tab.zoom = static_cast<int>(Sci(&tab, SCI_GETZOOM));
-    tab.dirty = Sci(&tab, SCI_GETMODIFY) != 0;
+    tab.dirty = Sci(&tab, SCI_GETMODIFY) != 0 || !tab.recovery.empty();
 }
 
 void App::selectTab(int index) {
@@ -824,6 +945,10 @@ bool App::promptSave(Tab& tab) {
         return saveTab(tab, false);
     }
     if (answer == IDNO) {
+        clearRecovery(tab);
+        tab.dirty = false;
+        updateTabBar();
+        updateTitle();
         return true;
     }
     return false;
@@ -865,13 +990,10 @@ bool App::saveTab(Tab& tab, bool saveAs) {
     tab.readOnly = false;
     editor::SetReadOnly(tab.sci, false);
     Sci(&tab, SCI_SETSAVEPOINT);
+    clearRecovery(tab);
     tab.dirty = false;
     AddRecentFile(settings_, tab.path);
     SaveSettings(settings_);
-    if (!tab.recovery.empty()) {
-        DeleteFileW((DataDirectory() + L"\\recovery\\" + tab.recovery).c_str());
-        tab.recovery.clear();
-    }
     updateTabBar();
     updateStatus();
     updateTitle();
@@ -1255,6 +1377,9 @@ void App::handleScintillaNotify(LPARAM lParam) {
         auto* notification = reinterpret_cast<SCNotification*>(lParam);
         if (notification->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT)) {
             editor::UpdateLineNumberWidth(tab->sci);
+            if (tab->loaded) {
+                noteBufferDirty(*tab);
+            }
             updateStatus();
         }
         break;
@@ -1265,10 +1390,14 @@ void App::handleScintillaNotify(LPARAM lParam) {
             updateTabBar();
             updateTitle();
         }
+        if (tab->loaded) {
+            noteBufferDirty(*tab);
+        }
         break;
     case SCN_SAVEPOINTREACHED:
-        if (tab->dirty) {
+        if (tab->dirty && tab->recovery.empty()) {
             tab->dirty = false;
+            tab->needsSnapshot = false;
             updateTabBar();
             updateTitle();
         }
@@ -1370,6 +1499,10 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         if (wParam == kTimerSession) {
             KillTimer(hwnd_, kTimerSession);
             saveSession();
+        } else if (wParam == kTimerRecovery) {
+            if (snapshotRecovery()) {
+                markSessionDirty();
+            }
         }
         return 0;
     case WM_SETFOCUS: {
@@ -1436,6 +1569,8 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         return 0;
     case WM_DESTROY:
         KillTimer(hwnd_, kTimerSession);
+        KillTimer(hwnd_, kTimerRecovery);
+        recoveryTimerActive_ = false;
         tabs_.clear();
         if (accel_) {
             DestroyAcceleratorTable(accel_);

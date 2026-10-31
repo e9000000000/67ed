@@ -142,9 +142,13 @@ On startup, tabs are restored as metadata. Only the active tab is loaded; others
 on first activation. If a recovery file exists, it is loaded instead of the disk file
 and marked dirty.
 
-Recovery snapshots: copy the Scintilla buffer to a temp file, then rename, on a
-worker thread. Rates: 5 s after the last edit for ≤ 32 MB; every 60 s for larger;
-always on graceful exit. Successful save deletes the recovery files.
+Recovery snapshots run on the UI thread because they read the Scintilla buffer
+(`editor::SaveDocument` streams 4 MB chunks through `SCI_GETTEXTRANGEFULL`). The
+write is temp-file + rename. Rates: 5 s after the last edit for buffers ≤ 32 MB;
+every 60 s for larger buffers. Dirty untitled tabs are preserved too. On startup,
+an existing recovery file is loaded instead of the disk file, the tab is marked
+`(recovered)`, and it stays dirty until saved. Saving or discarding deletes the
+recovery file; a crash leaves it for the next launch.
 
 ## Single instance
 
@@ -171,7 +175,11 @@ always on graceful exit. Successful save deletes the recovery files.
 
 ## Testing
 
-- Self-test/bench modes in the same EXE (no separate test runtime dependency).
+- Self-test/bench modes in the same EXE (no separate test runtime dependency), all
+  headless: a hidden host window is created and results go to a `--log` file.
+- `--selftest`: 70 checks for JSON, encoding/EOL, session, and Scintilla
+  set/get/find/undo plus chunked save. No editor window or message box appears.
 - Fixture generator: `--make-fixture <path> <MB> [--one-line]`.
-- Bench: `--bench <path>` opens hidden, reports open/RSS/scroll/edit/find/save.
-- Unit tests for JSON, encoding/EOL, session, paths, CLI.
+- Bench: `--bench <path>` opens hidden, reports open/RSS/scroll/find/save and RSS
+  after save.
+- Runner scripts: `tests/run-selftest.ps1`, `tests/run-bench.ps1`.

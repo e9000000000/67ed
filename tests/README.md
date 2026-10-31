@@ -57,6 +57,11 @@ running window; the second process exits immediately.
 Find: Ctrl+F pre-fills the selection, Enter/F3 finds the next hit, Shift+Enter /
 Shift+F3 finds the previous hit, Esc closes the bar.
 
+Recovery: open a file, type a character, wait about 7 seconds for the snapshot,
+then kill the process (Task Manager or `Stop-Process -Force`). Relaunch with no
+arguments: the tab reopens with the edit, titled `(recovered) *`. Saving clears the
+marker and removes `%APPDATA%\67ed\recovery\<tab>.txt`.
+
 Large file: open a ~100 MB fixture; word wrap is off automatically above 16 MB
 (toggle with Alt+Z). Typing, wheel scrolling, save, and tab switching stay
 responsive.

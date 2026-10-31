@@ -18,13 +18,16 @@
   Scintilla per tab, open/save, chunked 100 MB load, single-instance handoff,
   custom dark scrollbars, lazy session restore.
 - **M1 in progress.** Tabs, lazy loading, session persistence, dirty prompts,
-  duplicate-path focusing, close/reopen restore. Headless `--selftest` (65 checks),
-  `--bench`, and `--make-fixture` are in place. Still missing: tab drag-reorder,
-  tab context menu, recovery snapshots.
+  duplicate-path focusing, close/reopen restore, dirty-buffer recovery snapshots.
+  Headless `--selftest` (70 checks), `--bench`, and `--make-fixture` are in place.
+  Still missing: tab drag-reorder, tab context menu.
 - **M2 in progress.** Custom dark menu bar and popups, font dialog, wrap, line
   numbers, EOL, zoom, and the find bar (Ctrl+F, F3, Shift+F3, match case, whole
   word). Still missing: replacement, regex, go-to-line, insert/overwrite.
-- **M3/M4 pending.**
+- **M3 in progress.** Dirty snapshots and recovery restore are done, as are the
+  encoding matrix, drag-and-drop, recent files, and read-only/binary/2 GB guards.
+  Still missing: file watching and disk-conflict handling.
+- **M4 pending.**
 
 Latest measured 98.4 MiB file: 465 ms open, 303 ms chunked save, 210 MB RSS after
 save. Release EXE 1.37 MiB. See `docs/PERF.md`.
@@ -99,12 +102,13 @@ encoding matrix round-trips byte-for-byte when unedited.
 
 ## Recovery policy
 
-- Graceful exit: snapshot every dirty tab.
 - Runtime: 5 s after typing stops for buffers ≤ 32 MB; every 60 s for larger.
-- Snapshots are temp-file + rename under `%APPDATA%\67ed\recovery\` (or `.\state\`
-  in portable mode).
+- Snapshots stream to a temp file then rename under `%APPDATA%\67ed\recovery\`
+  (or `.\state\` in portable mode).
 - On startup, a recovery file wins over the on-disk file and the tab opens dirty,
-  marked "recovered". The user can save or discard.
+  marked `(recovered)`. The user can save or discard.
+- Saving or discarding the buffer deletes its recovery file. A graceful exit
+  prompts per dirty tab; a crash leaves the snapshot for the next launch.
 
 ## Out of scope (v1)
 

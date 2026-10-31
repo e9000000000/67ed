@@ -27,13 +27,15 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 - Single instance: a later launch adds a tab to the running window and exits
 - Word wrap, line numbers, EOL conversion, zoom, font dialog
 - Find bar: Ctrl+F (prefills selection), F3 / Shift+F3, match case, whole word
+- Crash recovery: dirty buffers are snapshotted; a killed process reopens them
+  marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
 - Headless `--selftest` (65 checks) and `--bench` modes; no windows are shown
 - 100 MB class files: no-wrap large-file mode, measured 465 ms open / 303 ms save,
   210 MB RSS after save (`docs/PERF.md`)
 
-Not there yet: replacement in the find bar, regex search, go-to-line, recovery of
-dirty buffers, tab drag-reorder, context menus, dark native file dialogs.
+Not there yet: replacement in the find bar, regex search, go-to-line, tab
+drag-reorder, context menus, dark native file dialogs.
 
 ## Status
 

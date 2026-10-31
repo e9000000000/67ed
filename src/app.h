@@ -35,6 +35,11 @@ struct Tab {
     long long anchor = 0;
     int firstVisibleLine = 0;
     int xOffset = 0;
+
+    // Crash-recovery bookkeeping (not persisted in session.json).
+    ULONGLONG lastEditTick = 0;
+    ULONGLONG lastRecoveryTick = 0;
+    bool needsSnapshot = false;
 };
 
 class App {
@@ -59,6 +64,10 @@ private:
     void restoreSession(const SessionState& session);
     void saveSession();
     void markSessionDirty();
+    void noteBufferDirty(Tab& tab);
+    bool snapshotRecovery();
+    void clearRecovery(Tab& tab);
+    std::wstring recoveryPath(const Tab& tab) const;
 
     void layout();
     void updateTabBar();
@@ -119,4 +128,5 @@ private:
     UINT dpi_ = 96;
     bool closing_ = false;
     bool sessionValid_ = false;
+    bool recoveryTimerActive_ = false;
 };
