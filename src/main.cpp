@@ -8,6 +8,7 @@
 
 #include "Scintilla.h"
 #include "app.h"
+#include "headless.h"
 #include "util.h"
 
 namespace {
@@ -15,6 +16,18 @@ namespace {
 constexpr wchar_t kMutexName[] = L"Local\\67ed-single-instance-v1";
 constexpr wchar_t kMainClass[] = L"67edMainWindow";
 constexpr ULONG_PTR kCopyDataTag = 0x67ED;
+
+struct LaunchOptions {
+    std::vector<std::wstring> paths;
+    bool selfTest = false;
+    bool bench = false;
+    bool makeFixture = false;
+    bool oneLine = false;
+    std::wstring benchFile;
+    std::wstring fixturePath;
+    std::wstring logPath;
+    int megabytes = 100;
+};
 
 bool SendToRunningInstance(const std::vector<std::wstring>& paths) {
     HWND target = nullptr;
@@ -51,15 +64,74 @@ void Report(const wchar_t* message) {
     MessageBoxW(nullptr, message, L"67ed", MB_OK | MB_ICONERROR);
 }
 
+LaunchOptions ParseOptions() {
+    LaunchOptions options;
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv) {
+        return options;
+    }
+    for (int i = 1; i < argc; ++i) {
+        const std::wstring arg = argv[i];
+        if (arg == L"--selftest") {
+            options.selfTest = true;
+        } else if (arg == L"--bench" && i + 1 < argc) {
+            options.bench = true;
+            options.benchFile = argv[++i];
+        } else if (arg == L"--make-fixture" && i + 1 < argc) {
+            options.makeFixture = true;
+            options.fixturePath = argv[++i];
+        } else if (arg == L"--mb" && i + 1 < argc) {
+            options.megabytes = static_cast<int>(wcstol(argv[++i], nullptr, 10));
+        } else if (arg == L"--one-line") {
+            options.oneLine = true;
+        } else if (arg == L"--log" && i + 1 < argc) {
+            options.logPath = argv[++i];
+        } else if (arg == L"--new-tab" || arg == L"--new") {
+            // Compatible no-op: no-argument launches already open a new tab.
+        } else if (!arg.empty() && arg[0] == L'-') {
+            // Unknown option.
+        } else if (!arg.empty()) {
+            options.paths.push_back(arg);
+        }
+    }
+    LocalFree(argv);
+    if (options.megabytes < 1) {
+        options.megabytes = 100;
+    }
+    if (options.megabytes > 2048) {
+        options.megabytes = 2048;
+    }
+    return options;
+}
+
 }  // namespace
 
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    EnableDarkModeForApp();
 
     INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_STANDARD_CLASSES};
     InitCommonControlsEx(&controls);
 
+    const LaunchOptions options = ParseOptions();
+
+    if (options.selfTest || options.bench || options.makeFixture) {
+        if (!Scintilla_RegisterClasses(instance)) {
+            return 1;
+        }
+        int result = 0;
+        if (options.selfTest) {
+            result = RunSelfTest(options.logPath);
+        } else if (options.bench) {
+            result = RunBench(options.benchFile, options.logPath);
+        } else {
+            result = MakeFixture(options.fixturePath, options.megabytes, options.oneLine, options.logPath);
+        }
+        Scintilla_ReleaseResources();
+        return result;
+    }
+
+    EnableDarkModeForApp();
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
     if (!Scintilla_RegisterClasses(instance)) {
@@ -68,34 +140,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         return 1;
     }
 
-    std::vector<std::wstring> paths;
-    int argc = 0;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (argv) {
-        for (int i = 1; i < argc; ++i) {
-            const std::wstring arg = argv[i];
-            if (arg == L"--new-tab" || arg == L"--new") {
-                continue;
-            }
-            if (arg.size() > 1 && arg[0] == L'-') {
-                continue;
-            }
-            if (!arg.empty()) {
-                paths.push_back(arg);
-            }
-        }
-        LocalFree(argv);
-    }
-
     HANDLE mutex = CreateMutexW(nullptr, TRUE, kMutexName);
     if (!mutex) {
         Report(L"Cannot create the single-instance mutex.");
+        Scintilla_ReleaseResources();
         CoUninitialize();
         return 1;
     }
     const DWORD mutexError = GetLastError();
     if (mutexError == ERROR_ALREADY_EXISTS) {
-        const bool delivered = SendToRunningInstance(paths);
+        const bool delivered = SendToRunningInstance(options.paths);
         CloseHandle(mutex);
         if (!delivered) {
             Report(L"67ed is already running, but it did not respond.\n"
@@ -107,7 +161,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     }
 
     App app(instance);
-    if (!app.create(paths)) {
+    if (!app.create(options.paths)) {
         Report(L"Cannot create the 67ed window.");
         ReleaseMutex(mutex);
         CloseHandle(mutex);

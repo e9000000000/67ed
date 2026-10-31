@@ -122,6 +122,9 @@ bool App::create(const std::vector<std::wstring>& initialPaths) {
     if (!statusBar_.create(hwnd_, instance_)) {
         return false;
     }
+    if (!findBar_.create(hwnd_, instance_)) {
+        return false;
+    }
 
     bool placed = false;
     if (haveSession && session.hasWindow) {
@@ -225,6 +228,9 @@ void App::createAccelerators() {
         {FVIRTKEY | FCONTROL, '0', kCmdZoomReset},
         {FVIRTKEY | FCONTROL, VK_TAB, kCmdNextTab},
         {FVIRTKEY | FCONTROL | FSHIFT, VK_TAB, kCmdPrevTab},
+        {FVIRTKEY | FCONTROL, 'F', kCmdFind},
+        {FVIRTKEY, VK_F3, kCmdFindNext},
+        {FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev},
         {FVIRTKEY | FALT, 'F', kCmdMenuFile},
         {FVIRTKEY | FALT, 'E', kCmdMenuEdit},
         {FVIRTKEY | FALT, 'V', kCmdMenuView},
@@ -284,6 +290,15 @@ void App::onCommand(UINT id) {
         break;
     case kCmdTimeDate:
         insertTimeDate();
+        break;
+    case kCmdFind:
+        showFind();
+        break;
+    case kCmdFindNext:
+        findNext(true);
+        break;
+    case kCmdFindPrev:
+        findNext(false);
         break;
     case kCmdWrap:
         toggleWrap();
@@ -479,13 +494,17 @@ void App::layout() {
     const int menuHeight = menuBar_.preferredHeight(hwnd_);
     const int tabHeight = tabBar_.preferredHeight(hwnd_);
     const int statusHeight = statusBar_.preferredHeight(hwnd_);
+    const int findHeight = findBar_.isVisible() ? findBar_.preferredHeight(hwnd_) : 0;
     const int tabTop = menuHeight;
     const int editorTop = tabTop + tabHeight;
-    const int editorHeight = std::max(0, height - editorTop - statusHeight);
+    const int editorHeight = std::max(0, height - editorTop - statusHeight - findHeight);
 
     menuBar_.layout(0, 0, width, menuHeight);
     tabBar_.layout(0, tabTop, width, tabHeight);
     statusBar_.layout(0, height - statusHeight, width, statusHeight);
+    if (findBar_.isVisible()) {
+        findBar_.layout(0, height - statusHeight - findHeight, width, findHeight);
+    }
 
     for (size_t i = 0; i < tabs_.size(); ++i) {
         Tab& tab = *tabs_[i];
@@ -831,10 +850,9 @@ bool App::saveTab(Tab& tab, bool saveAs) {
         return false;
     }
 
-    const std::string text = editor::GetText(tab.sci);
     std::wstring error;
     HCURSOR oldCursor = SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-    const bool ok = SaveFile(target, text, tab.encoding, tab.bom, error);
+    const bool ok = editor::SaveDocument(tab.sci, target, tab.encoding, tab.bom, error);
     SetCursor(oldCursor);
     if (!ok) {
         ShowError(hwnd_, error);
@@ -991,6 +1009,119 @@ void App::showFontDialog() {
     applySettingsToAll();
     SaveSettings(settings_);
     markSessionDirty();
+}
+
+std::string App::selectedText() {
+    Tab* tab = activeTab();
+    if (!tab || !tab->loaded || !tab->sci) {
+        return {};
+    }
+    const long long start = static_cast<long long>(SendMessageW(tab->sci, SCI_GETSELECTIONSTART, 0, 0));
+    const long long end = static_cast<long long>(SendMessageW(tab->sci, SCI_GETSELECTIONEND, 0, 0));
+    const long long length = end - start;
+    if (length <= 0 || length > 200) {
+        return {};
+    }
+    std::string text(static_cast<size_t>(length) + 1, '\0');
+    SendMessageW(tab->sci, SCI_GETSELTEXT, static_cast<WPARAM>(text.size()),
+                 reinterpret_cast<LPARAM>(text.data()));
+    text.resize(static_cast<size_t>(length));
+    return text;
+}
+
+void App::showFind() {
+    Tab* tab = activeTab();
+    if (!tab || !tab->loaded) {
+        return;
+    }
+    if (!findBar_.isVisible()) {
+        const std::string selected = selectedText();
+        if (!selected.empty() && selected.find('\n') == std::string::npos &&
+            selected.find('\r') == std::string::npos) {
+            findBar_.setQuery(Utf8ToWide(selected));
+        }
+        findBar_.show();
+        layout();
+    }
+    findBar_.focusEdit();
+}
+
+void App::hideFind() {
+    if (!findBar_.isVisible()) {
+        return;
+    }
+    findBar_.hide();
+    layout();
+    if (Tab* tab = activeTab()) {
+        editor::Focus(tab->sci);
+    }
+}
+
+void App::findNext(bool forward) {
+    Tab* tab = activeTab();
+    if (!tab || !tab->loaded || !tab->sci) {
+        return;
+    }
+    if (!findBar_.isVisible()) {
+        showFind();
+        return;
+    }
+    const std::wstring wideQuery = findBar_.query();
+    if (wideQuery.empty()) {
+        MessageBeep(MB_ICONASTERISK);
+        return;
+    }
+    const std::string query = WideToUtf8(wideQuery);
+    if (query.empty()) {
+        return;
+    }
+
+    int flags = 0;
+    if (findBar_.matchCase()) {
+        flags |= SCFIND_MATCHCASE;
+    }
+    if (findBar_.wholeWord()) {
+        flags |= SCFIND_WHOLEWORD;
+    }
+    SendMessageW(tab->sci, SCI_SETSEARCHFLAGS, static_cast<WPARAM>(flags), 0);
+
+    const auto search = [&](long long from, long long to) -> long long {
+        SendMessageW(tab->sci, SCI_SETTARGETSTART, static_cast<WPARAM>(from), 0);
+        SendMessageW(tab->sci, SCI_SETTARGETEND, static_cast<WPARAM>(to), 0);
+        return static_cast<long long>(SendMessageW(tab->sci, SCI_SEARCHINTARGET,
+                                                   static_cast<WPARAM>(query.size()),
+                                                   reinterpret_cast<LPARAM>(query.c_str())));
+    };
+
+    const long long documentLength = static_cast<long long>(SendMessageW(tab->sci, SCI_GETLENGTH, 0, 0));
+    const long long selectionStart = static_cast<long long>(SendMessageW(tab->sci, SCI_GETSELECTIONSTART, 0, 0));
+    const long long selectionEnd = static_cast<long long>(SendMessageW(tab->sci, SCI_GETSELECTIONEND, 0, 0));
+    const long long queryLength = static_cast<long long>(query.size());
+    long long found = -1;
+
+    if (forward) {
+        found = search(selectionEnd, documentLength);
+        if (found < 0) {
+            found = search(0, documentLength);
+        }
+    } else {
+        // Scintilla searches backwards when the target start is after the end.
+        const long long before = std::max<long long>(0, selectionStart - 1);
+        found = search(before, 0);
+        if (found < 0) {
+            found = search(documentLength, 0);
+        }
+    }
+
+    if (found < 0) {
+        MessageBeep(MB_ICONASTERISK);
+        return;
+    }
+
+    SendMessageW(tab->sci, SCI_SETSEL, static_cast<WPARAM>(found),
+                 static_cast<LPARAM>(found + queryLength));
+    SendMessageW(tab->sci, SCI_SCROLLCARET, 0, 0);
+    updateStatus();
 }
 
 void App::applySettingsToAll() {
@@ -1280,6 +1411,15 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         return 0;
     case tabbar_events::kNew:
         newTab();
+        return 0;
+    case findbar_events::kNext:
+        findNext(true);
+        return 0;
+    case findbar_events::kPrev:
+        findNext(false);
+        return 0;
+    case findbar_events::kClose:
+        hideFind();
         return 0;
     case WM_CLOSE:
         if (closing_) {

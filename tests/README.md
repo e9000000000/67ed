@@ -1,7 +1,7 @@
 # Tests
 
-There is no separate test runtime yet. The app is the test harness; this file
-records the smoke tests used while bringing up M0.
+Automated tests run headless: the EXE creates only a hidden host window and writes
+a log file. No editor window appears, and no message boxes are shown.
 
 ## Build
 
@@ -9,7 +9,40 @@ records the smoke tests used while bringing up M0.
 .\build.bat
 ```
 
-## Smoke: open / type / save / restore
+## Headless self-test
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-selftest.ps1
+```
+
+Covers JSON parse/dump, UTF-8/UTF-16LE/BE/ANSI round-trips, BOM and EOL handling,
+session serialization, and Scintilla set/get/find/backward-find/undo. Expected
+final line: `summary passed=70 failed=0`.
+
+## Headless bench
+
+```powershell
+# generates a 100 MB fixture on first run, then benchmarks it hidden
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
+
+# or use an existing file
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1 `
+  -Fixture "$env:TEMP\opencode\big-100mb.txt"
+```
+
+Reports internal `read_ms`, `set_text_ms`, `open_ms`, RSS, find/scroll, and chunked
+`save_ms` numbers. Current values are in `docs/PERF.md`.
+
+## Fixtures
+
+```powershell
+build\67ed.exe --make-fixture big.txt --mb 100 --log fixture.log
+build\67ed.exe --make-fixture huge-line.txt --mb 20 --one-line --log fixture.log
+```
+
+## Manual smoke
+
+Only for UI work; do not script repeated GUI launches.
 
 1. Create a UTF-8 file.
 2. `build\67ed.exe file.txt` — the file opens in a tab.
@@ -18,49 +51,12 @@ records the smoke tests used while bringing up M0.
 4. Close the window (or Ctrl+W on the last tab). Relaunch with no arguments.
 5. The tab, cursor, and scroll position are restored.
 
-## Smoke: single instance
+Single instance: with 67ed running, `build\67ed.exe second.txt` adds a tab to the
+running window; the second process exits immediately.
 
-With 67ed running:
+Find: Ctrl+F pre-fills the selection, Enter/F3 finds the next hit, Shift+Enter /
+Shift+F3 finds the previous hit, Esc closes the bar.
 
-```powershell
-build\67ed.exe second.txt
-```
-
-A second tab appears in the running window; the second process exits immediately.
-Launching with no arguments adds an empty tab.
-
-## Smoke: menus
-
-- Click `File`, `Edit`, `View`, `Help`; popups are dark, keyboard navigable
-  (arrows/Enter/Esc), and commands execute.
-- Alt+F / Alt+E / Alt+V / Alt+H and F10 open the corresponding menu.
-- Word Wrap, Line Numbers, EOL conversion, zoom, and Font persist.
-
-## Large-file smoke
-
-Generate a ~100 MB file and open it. Current numbers are in `docs/PERF.md`.
-
-```powershell
-$path = "$env:TEMP\big-100mb.txt"
-$line = "The quick brown fox jumps over the lazy dog. " * 150 + "`r`n"
-$sw = [IO.StreamWriter]::new($path, $false, [Text.UTF8Encoding]::new($false))
-$chunk = $line * 80
-1..100 | ForEach-Object { $sw.Write($chunk) }
-$sw.Close()
-build\67ed.exe $path
-```
-
-Checks:
-
-- Window appears before the file finishes loading.
-- Word wrap is off automatically above 16 MB (toggle with Alt+Z).
-- Typing, wheel scrolling, save, and tab switching stay responsive.
-- Save is atomic: the original is replaced only after the temp file is written.
-
-## Future harness
-
-- `--bench <file>`: hidden window, internal open/scroll/edit/find/save timing,
-  peak RSS.
-- `--make-fixture <path> <MB> [--one-line]`.
-- Unit tests for JSON, encoding/EOL round-trip, session schema, and path handling.
-- Playwright is not applicable (native Win32); UI checks stay scripted/manual.
+Large file: open a ~100 MB fixture; word wrap is off automatically above 16 MB
+(toggle with Alt+Z). Typing, wheel scrolling, save, and tab switching stay
+responsive.

@@ -67,7 +67,7 @@ if errorlevel 1 (
 
 set "CFLAGS=/nologo /std:c++20 /EHsc /W4 /permissive- /utf-8 /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX /Ithird_party\scintilla\include /Ithird_party\scintilla\src"
 set "LDFLAGS=/nologo /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF /LTCG /MAP:build\67ed.map"
-set "LIBS=build\scintilla.lib user32.lib gdi32.lib comdlg32.lib shell32.lib ole32.lib oleaut32.lib advapi32.lib dwmapi.lib uxtheme.lib comctl32.lib imm32.lib shlwapi.lib"
+set "LIBS=build\scintilla.lib user32.lib gdi32.lib comdlg32.lib shell32.lib ole32.lib oleaut32.lib advapi32.lib dwmapi.lib uxtheme.lib comctl32.lib imm32.lib shlwapi.lib psapi.lib"
 
 if /I "%MODE%"=="debug" (
     set "CFLAGS=%CFLAGS% /Od /Zi /MT /DDEBUG"

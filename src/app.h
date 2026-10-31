@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "findbar.h"
 #include "menubar.h"
 #include "session.h"
 #include "settings.h"
@@ -86,6 +87,10 @@ private:
     void toggleWrap();
     void toggleLineNumbers();
     void showFontDialog();
+    void showFind();
+    void hideFind();
+    void findNext(bool forward);
+    std::string selectedText();
     void zoomBy(int delta);
     void resetZoom();
     void convertEol(EolMode eol);
@@ -106,6 +111,7 @@ private:
     MenuBar menuBar_;
     TabBar tabBar_;
     StatusBar statusBar_;
+    FindBar findBar_;
     std::vector<std::unique_ptr<Tab>> tabs_;
     int active_ = -1;
     int untitledCounter_ = 1;

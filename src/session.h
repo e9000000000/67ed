@@ -35,3 +35,5 @@ struct SessionState {
 
 bool LoadSession(SessionState& session);
 bool SaveSession(const SessionState& session);
+bool LoadSessionFile(const std::wstring& path, SessionState& session);
+bool SaveSessionFile(const std::wstring& path, const SessionState& session);

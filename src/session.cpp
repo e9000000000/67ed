@@ -46,8 +46,11 @@ long long JsonInt64(const Json& value) {
 }  // namespace
 
 bool LoadSession(SessionState& session) {
+    return LoadSessionFile(DataDirectory() + L"\\session.json", session);
+}
+
+bool LoadSessionFile(const std::wstring& path, SessionState& session) {
     session = SessionState{};
-    const std::wstring path = DataDirectory() + L"\\session.json";
     std::string text;
     if (!ReadTextFile(path, text)) {
         return false;
@@ -102,6 +105,10 @@ bool LoadSession(SessionState& session) {
 }
 
 bool SaveSession(const SessionState& session) {
+    return SaveSessionFile(DataDirectory() + L"\\session.json", session);
+}
+
+bool SaveSessionFile(const std::wstring& path, const SessionState& session) {
     Json root = Json::MakeObject();
     root["version"] = Json(1);
     Json window = Json::MakeObject();
@@ -137,5 +144,5 @@ bool SaveSession(const SessionState& session) {
     root["tabs"] = std::move(tabs);
 
     std::wstring error;
-    return WriteTextFileAtomic(DataDirectory() + L"\\session.json", root.dump(2), error);
+    return WriteTextFileAtomic(path, root.dump(2), error);
 }

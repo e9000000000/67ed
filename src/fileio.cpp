@@ -197,6 +197,62 @@ bool LoadFile(const std::wstring& path, LoadedFile& out, std::wstring& error) {
     return true;
 }
 
+bool SaveFileAtomic(const std::wstring& path,
+                    const std::function<bool(HANDLE, DWORD&)>& writer,
+                    std::wstring& error) {
+    const DWORD attrs = GetFileAttributesW(path.c_str());
+    if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_READONLY)) {
+        error = L"Cannot save: file is read-only: " + path;
+        return false;
+    }
+
+    const std::wstring directory = DirectoryOf(path);
+    wchar_t tempPath[MAX_PATH] = {};
+    if (GetTempFileNameW(directory.c_str(), L"67e", 0, tempPath) == 0) {
+        error = GetErrorText(L"Cannot create temporary file in " + directory, GetLastError());
+        return false;
+    }
+
+    HANDLE file = CreateFileW(tempPath, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        const DWORD openError = GetLastError();
+        DeleteFileW(tempPath);
+        error = GetErrorText(L"Cannot write temporary file", openError);
+        return false;
+    }
+
+    DWORD writeError = ERROR_SUCCESS;
+    bool ok = writer(file, writeError);
+    if (ok && !FlushFileBuffers(file)) {
+        writeError = GetLastError();
+        ok = false;
+    }
+    CloseHandle(file);
+
+    if (!ok) {
+        DeleteFileW(tempPath);
+        error = GetErrorText(L"Cannot write " + path, writeError);
+        return false;
+    }
+
+    BOOL replaced = FALSE;
+    if (attrs != INVALID_FILE_ATTRIBUTES) {
+        replaced = ReplaceFileW(path.c_str(), tempPath, nullptr, REPLACEFILE_IGNORE_MERGE_ERRORS, nullptr, nullptr);
+    }
+    if (!replaced) {
+        if (!MoveFileExW(tempPath, path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+            const DWORD moveError = GetLastError();
+            DeleteFileW(tempPath);
+            error = GetErrorText(L"Cannot replace " + path, moveError);
+            return false;
+        }
+    }
+
+    error.clear();
+    return true;
+}
+
 bool SaveFile(const std::wstring& path, std::string_view utf8, Encoding encoding, bool bom, std::wstring& error) {
     const DWORD attrs = GetFileAttributesW(path.c_str());
     if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_READONLY)) {
@@ -204,27 +260,29 @@ bool SaveFile(const std::wstring& path, std::string_view utf8, Encoding encoding
         return false;
     }
 
-    std::string bytes;
+    // UTF-8 is the common case: write the caller's buffer directly so saving a
+    // 100 MB document does not allocate a second 100 MB copy.
+    bool writeUtf8Bom = false;
+    std::string converted;
+    std::string_view payload = utf8;
     try {
         switch (encoding) {
         case Encoding::Utf8:
-            if (bom) {
-                bytes.append("\xEF\xBB\xBF", 3);
-            }
-            bytes.append(utf8);
+            writeUtf8Bom = bom;
             break;
         case Encoding::Utf16LE:
         case Encoding::Utf16BE: {
             std::wstring wide = Utf8ToWide(utf8);
             if (bom) {
                 if (encoding == Encoding::Utf16LE) {
-                    bytes.append("\xFF\xFE", 2);
+                    converted.append("\xFF\xFE", 2);
                 } else {
-                    bytes.append("\xFE\xFF", 2);
+                    converted.append("\xFE\xFF", 2);
                 }
             }
-            bytes.resize(bytes.size() + wide.size() * 2);
-            char* dst = bytes.data() + bytes.size() - wide.size() * 2;
+            const size_t base = converted.size();
+            converted.resize(base + wide.size() * 2);
+            char* dst = converted.data() + base;
             for (size_t i = 0; i < wide.size(); ++i) {
                 const unsigned int value = static_cast<unsigned int>(wide[i]);
                 if (encoding == Encoding::Utf16LE) {
@@ -235,6 +293,7 @@ bool SaveFile(const std::wstring& path, std::string_view utf8, Encoding encoding
                     dst[i * 2 + 1] = static_cast<char>(value & 0xFF);
                 }
             }
+            payload = converted;
             break;
         }
         case Encoding::Ansi: {
@@ -242,10 +301,11 @@ bool SaveFile(const std::wstring& path, std::string_view utf8, Encoding encoding
             if (!wide.empty()) {
                 const int length = WideCharToMultiByte(CP_ACP, 0, wide.data(), static_cast<int>(wide.size()), nullptr, 0, nullptr, nullptr);
                 if (length > 0) {
-                    bytes.resize(static_cast<size_t>(length));
-                    WideCharToMultiByte(CP_ACP, 0, wide.data(), static_cast<int>(wide.size()), bytes.data(), length, nullptr, nullptr);
+                    converted.resize(static_cast<size_t>(length));
+                    WideCharToMultiByte(CP_ACP, 0, wide.data(), static_cast<int>(wide.size()), converted.data(), length, nullptr, nullptr);
                 }
             }
+            payload = converted;
             break;
         }
         }
@@ -271,7 +331,13 @@ bool SaveFile(const std::wstring& path, std::string_view utf8, Encoding encoding
     }
 
     DWORD writeError = ERROR_SUCCESS;
-    bool ok = WriteAllBytes(file, bytes.data(), bytes.size(), writeError);
+    bool ok = true;
+    if (writeUtf8Bom) {
+        ok = WriteAllBytes(file, "\xEF\xBB\xBF", 3, writeError);
+    }
+    if (ok) {
+        ok = WriteAllBytes(file, payload.data(), payload.size(), writeError);
+    }
     if (ok && !FlushFileBuffers(file)) {
         writeError = GetLastError();
         ok = false;

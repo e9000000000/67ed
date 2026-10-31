@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "Scintilla.h"
+#include "fileio.h"
 #include "theme.h"
 #include "util.h"
 
@@ -144,6 +145,64 @@ std::string GetText(HWND sci) {
     S(sci, SCI_GETTEXT, static_cast<uptr_t>(text.size()), reinterpret_cast<sptr_t>(text.data()));
     text.resize(static_cast<size_t>(length));
     return text;
+}
+
+namespace {
+
+bool WriteHandle(HANDLE file, const char* data, DWORD length, DWORD& error) {
+    size_t offset = 0;
+    while (offset < length) {
+        const DWORD want = static_cast<DWORD>(std::min<size_t>(length - offset, 1u << 20));
+        DWORD written = 0;
+        if (!WriteFile(file, data + offset, want, &written, nullptr)) {
+            error = GetLastError();
+            return false;
+        }
+        if (written == 0) {
+            error = ERROR_WRITE_FAULT;
+            return false;
+        }
+        offset += written;
+    }
+    return true;
+}
+
+}  // namespace
+
+bool SaveDocument(HWND sci, const std::wstring& path, Encoding encoding, bool bom, std::wstring& error) {
+    if (!sci) {
+        error = L"No editor control";
+        return false;
+    }
+    // Non-UTF-8 targets need a full conversion pass; those buffers are not the
+    // 100 MB common case, so the extra copy is acceptable there.
+    if (encoding != Encoding::Utf8) {
+        return SaveFile(path, GetText(sci), encoding, bom, error);
+    }
+
+    constexpr Sci_Position kChunk = 4 * 1024 * 1024;
+    return SaveFileAtomic(path, [&](HANDLE file, DWORD& writeError) -> bool {
+        if (bom && !WriteHandle(file, "\xEF\xBB\xBF", 3, writeError)) {
+            return false;
+        }
+        const Sci_Position length = static_cast<Sci_Position>(S(sci, SCI_GETLENGTH));
+        std::string buffer;
+        Sci_Position position = 0;
+        while (position < length) {
+            const Sci_Position count = std::min<Sci_Position>(kChunk, length - position);
+            buffer.resize(static_cast<size_t>(count) + 1);
+            Sci_TextRangeFull range{};
+            range.chrg.cpMin = position;
+            range.chrg.cpMax = position + count;
+            range.lpstrText = buffer.data();
+            S(sci, SCI_GETTEXTRANGEFULL, 0, reinterpret_cast<sptr_t>(&range));
+            if (!WriteHandle(file, buffer.data(), static_cast<DWORD>(count), writeError)) {
+                return false;
+            }
+            position += count;
+        }
+        return true;
+    }, error);
 }
 
 void SetWrap(HWND sci, bool wrap) {

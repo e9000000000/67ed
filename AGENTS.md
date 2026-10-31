@@ -7,13 +7,14 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 ## Current state
 
 M0 is complete and M1 is in progress. The app builds as a single x64 executable
-(~1.23 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
+(~1.37 MiB) and currently has: custom dark menu/tab/status chrome, one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
-handoff, UTF-8/UTF-16/ANSI detection, atomic saves, word wrap/line numbers/EOL/zoom,
-and the font dialog. 100 MB files are measured in `docs/PERF.md`.
+handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
+numbers/EOL/zoom, the font dialog, and a find bar (Ctrl+F, F3, Shift+F3, match case,
+whole word). 100 MB files are measured in `docs/PERF.md`.
 
-Known gaps: find/replace and go-to-line, dirty-buffer recovery snapshots, tab
-drag-reorder/context menu, dark native file dialogs, `--bench`, unit tests.
+Known gaps: find-bar replacement and regex, go-to-line, dirty-buffer recovery
+snapshots, tab drag-reorder/context menu, dark native file dialogs.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
 
 ## Build
@@ -49,14 +50,17 @@ opens the tabs and comes to the foreground.
 src/
   main.cpp          WinMain, single-instance gate, CLI, Scintilla registration
   app.*             main window, commands, tabs, layout, menu, session wiring
+  menubar.*         custom dark menu bar and owner-drawn popups
   tabbar.*          custom dark tab strip
   statusbar.*       custom status bar
-  editor.*          per-tab Scintilla wrapper, theme, view state
+  findbar.*         dark find bar (find next/previous, match case, whole word)
+  editor.*          per-tab Scintilla wrapper, theme, view state, chunked save
+  headless.*        --selftest / --bench / --make-fixture, hidden host only
   fileio.*          file read/write, encoding/EOL detection, atomic save
   session.*         session/settings persistence, recovery snapshots
   json.*            small JSON value/parser/serializer
   theme.h           palette and UI metrics
-  util.*            string/UTF conversions, paths, errors
+  util.*            string/UTF conversions, paths, errors, dark-mode helpers
 resources/
   app.rc            icon, manifest, version
   app.manifest      per-monitor DPI, common controls v6
@@ -65,6 +69,9 @@ third_party/
 docs/
   PLAN.md           milestones and acceptance criteria
   ARCHITECTURE.md   detailed design
+tests/
+  run-selftest.ps1  headless self-test runner
+  run-bench.ps1     hidden fixture + benchmark runner
 ```
 
 ## Non-negotiable rules
@@ -87,7 +94,7 @@ docs/
 
 ## Performance budgets
 
-Measure with `67ed.exe --bench <file>` (once implemented) on this machine:
+Measure with `67ed.exe --bench <file>` on this machine:
 
 - EXE size: under 3 MB.
 - Window visible: under 100 ms from process start.
@@ -116,10 +123,21 @@ Do not regress these without updating the plan and recording numbers.
 
 ## Testing
 
-- Unit tests for JSON, encoding/EOL round-trips, path normalization, session
-  serialization, and command-line parsing.
-- A bench harness that generates fixtures (100 MB multi-line, 20 MB single-line)
-  and reports open/RSS/scroll/edit/find/save timings.
+All automated testing is headless. `--selftest`, `--bench`, and `--make-fixture`
+create only a hidden host window and write a log; they never show UI or message
+boxes. Do not drive the GUI with repeated window popups.
+
+```powershell
+.\build.bat
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-selftest.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1
+```
+
+- `--selftest`: JSON, encoding/EOL round-trips, session serialization, Scintilla
+  set/get/find/undo and chunked save. Expect `summary passed=70 failed=0`.
+- `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
+- `--make-fixture <path> --mb N [--one-line]`: generate test data.
+- All three accept `--log <path>`.
 - Manual smoke: tabs, dirty close prompts, restart restore, second launch, DPI
   125/150/200%, UTF-8/UTF-16/ANSI files, CRLF/LF, read-only files.
 

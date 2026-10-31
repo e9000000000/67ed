@@ -150,6 +150,10 @@ void MenuBar::rebuildMenus() {
     edit.items.push_back(MakeItem(kCmdPaste, L"Paste", L"Ctrl+V", has));
     edit.items.push_back(MakeItem(kCmdSelectAll, L"Select All", L"Ctrl+A", has));
     edit.items.push_back(MakeSeparator());
+    edit.items.push_back(MakeItem(kCmdFind, L"Find...", L"Ctrl+F", has));
+    edit.items.push_back(MakeItem(kCmdFindNext, L"Find Next", L"F3", has));
+    edit.items.push_back(MakeItem(kCmdFindPrev, L"Find Previous", L"Shift+F3", has));
+    edit.items.push_back(MakeSeparator());
     edit.items.push_back(MakeItem(kCmdTimeDate, L"Time/Date", L"F5", has));
     menus_.push_back(std::move(edit));
 

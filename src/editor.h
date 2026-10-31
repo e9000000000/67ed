@@ -14,6 +14,8 @@ HWND Create(HWND parent, HINSTANCE instance);
 void ApplySettings(HWND sci, const Settings& settings);
 void SetText(HWND sci, std::string_view utf8);
 std::string GetText(HWND sci);
+// Streams the buffer to disk in chunks (UTF-8) or converts first (UTF-16/ANSI).
+bool SaveDocument(HWND sci, const std::wstring& path, Encoding encoding, bool bom, std::wstring& error);
 void SetWrap(HWND sci, bool wrap);
 void SetLineNumbers(HWND sci, bool show);
 void SetEol(HWND sci, EolMode eol);

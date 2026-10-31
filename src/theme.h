@@ -20,6 +20,7 @@ constexpr COLORREF kSelection = RGB(38, 79, 120);
 constexpr COLORREF kCaretLine = RGB(40, 40, 42);
 constexpr COLORREF kMargin = RGB(37, 37, 38);
 constexpr COLORREF kMarginText = RGB(133, 133, 138);
+constexpr COLORREF kInput = RGB(48, 48, 52);
 constexpr COLORREF kDanger = RGB(241, 76, 76);
 
 constexpr int kMenuHeight = 30;
