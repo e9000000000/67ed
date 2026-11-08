@@ -232,9 +232,9 @@ void TabBar::paint(HDC target) {
         HPEN pen = CreatePen(PS_SOLID, std::max(2, theme::Scale(1, dpi_)), color);
         HGDIOBJ oldPen = SelectObject(dc, pen);
         MoveToEx(dc, cx - half, cy - half, nullptr);
-        LineTo(dc, cx + half + 1, cy + half + 1);
+        LineTo(dc, cx + half, cy + half);
         MoveToEx(dc, cx + half, cy - half, nullptr);
-        LineTo(dc, cx - half - 1, cy + half + 1);
+        LineTo(dc, cx - half, cy + half);
         SelectObject(dc, oldPen);
         DeleteObject(pen);
     };
@@ -301,14 +301,16 @@ void TabBar::paint(HDC target) {
         const int cx = (plusRect_.left + plusRect_.right) / 2;
         const int cy = (plusRect_.top + plusRect_.bottom) / 2;
         const int half = theme::Scale(6, dpi_);
-        HPEN pen = CreatePen(PS_SOLID, std::max(2, theme::Scale(1, dpi_)), theme::kTextDim);
-        HGDIOBJ oldPen = SelectObject(dc, pen);
-        MoveToEx(dc, cx - half, cy, nullptr);
-        LineTo(dc, cx + half + 1, cy);
-        MoveToEx(dc, cx, cy - half, nullptr);
-        LineTo(dc, cx, cy + half + 1);
-        SelectObject(dc, oldPen);
-        DeleteObject(pen);
+        int thickness = std::max(2, theme::Scale(2, dpi_));
+        if ((thickness % 2) != 0) {
+            ++thickness;
+        }
+        RECT horizontal{cx - half, cy - thickness / 2,
+                        cx + half, cy + thickness / 2};
+        RECT vertical{cx - thickness / 2, cy - half,
+                      cx + thickness / 2, cy + half};
+        FillRectColor(dc, horizontal, theme::kTextDim);
+        FillRectColor(dc, vertical, theme::kTextDim);
     }
 
     // Bottom border.
