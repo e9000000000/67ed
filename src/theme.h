@@ -5,23 +5,25 @@
 
 namespace theme {
 
-constexpr COLORREF kBg = RGB(30, 30, 30);
-constexpr COLORREF kPanel = RGB(37, 37, 38);
-constexpr COLORREF kPanelAlt = RGB(45, 45, 48);
-constexpr COLORREF kTabActive = RGB(30, 30, 30);
-constexpr COLORREF kTabInactive = RGB(45, 45, 48);
-constexpr COLORREF kTabHover = RGB(58, 58, 62);
-constexpr COLORREF kBorder = RGB(63, 63, 70);
-constexpr COLORREF kText = RGB(220, 220, 220);
-constexpr COLORREF kTextDim = RGB(150, 150, 155);
-constexpr COLORREF kTextFaint = RGB(100, 100, 105);
-constexpr COLORREF kAccent = RGB(14, 99, 156);
-constexpr COLORREF kSelection = RGB(38, 79, 120);
-constexpr COLORREF kCaretLine = RGB(40, 40, 42);
-constexpr COLORREF kMargin = RGB(37, 37, 38);
-constexpr COLORREF kMarginText = RGB(133, 133, 138);
-constexpr COLORREF kInput = RGB(48, 48, 52);
-constexpr COLORREF kDanger = RGB(241, 76, 76);
+// Flat dark palette. The editor and active tab share the darkest background so
+// the title bar reads as part of the document surface.
+constexpr COLORREF kBg = RGB(9, 9, 9);
+constexpr COLORREF kPanel = RGB(15, 15, 15);
+constexpr COLORREF kPanelAlt = RGB(23, 23, 23);
+constexpr COLORREF kTabActive = RGB(9, 9, 9);
+constexpr COLORREF kTabInactive = RGB(19, 19, 19);
+constexpr COLORREF kTabHover = RGB(30, 30, 30);
+constexpr COLORREF kBorder = RGB(36, 36, 36);
+constexpr COLORREF kText = RGB(216, 216, 216);
+constexpr COLORREF kTextDim = RGB(146, 146, 146);
+constexpr COLORREF kTextFaint = RGB(98, 98, 98);
+constexpr COLORREF kAccent = RGB(43, 107, 154);
+constexpr COLORREF kSelection = RGB(29, 58, 85);
+constexpr COLORREF kCaretLine = RGB(15, 15, 15);
+constexpr COLORREF kMargin = RGB(11, 11, 11);
+constexpr COLORREF kMarginText = RGB(112, 112, 112);
+constexpr COLORREF kInput = RGB(21, 21, 21);
+constexpr COLORREF kDanger = RGB(224, 82, 82);
 
 constexpr int kMenuHeight = 30;
 constexpr int kTabHeight = 28;
