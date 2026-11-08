@@ -22,10 +22,10 @@
   snapshots, tab drag-reorder, the dark tab context menu, and the recent-files
   menu. Headless `--selftest` (118 checks), `--bench`, and `--make-fixture` are in
   place.
-- **M2 complete (2026-11-01).** Custom dark menu bar and popups, font dialog,
-  wrap, line numbers, EOL, zoom, find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3,
-  match case, whole word, regex, replace, replace all), go-to-line (Ctrl+G), F5
-  time/date, and insert/overwrite.
+- **M2 complete (2026-11-01).** Dark burger menu and owner-drawn popups, font
+  dialog, wrap, line numbers, EOL, zoom, find/replace bar (Ctrl+F, Ctrl+H, F3,
+  Shift+F3, match case, whole word, regex, replace, replace all), go-to-line
+  (Ctrl+G), F5 time/date, and insert/overwrite.
 - **M3 complete (2026-11-01).** Dirty snapshots and recovery restore, the encoding
   matrix, drag-and-drop, recent files, read-only/binary/2 GB guards, external-change
   watching (auto-reload clean tabs, conflict marker for dirty tabs), and manual
@@ -77,7 +77,7 @@ round-trips; a second launch adds a tab in the already-running window.
 
 ### M2 — Editor UX
 
-- Custom dark menu bar and popups; accelerators.
+- Dark burger menu and popups; accelerators.
 - Font dialog (family, size, extra leading, tab width), zoom.
 - Word wrap toggle (auto-off for large files).
 - Find/replace bar with match case, whole word, regex; F3/Shift+F3.

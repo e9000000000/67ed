@@ -161,6 +161,7 @@ bool App::create(const std::vector<std::wstring>& initialPaths) {
     if (!menuBar_.create(hwnd_, instance_)) {
         return false;
     }
+    ShowWindow(menuBar_.hwnd(), SW_HIDE);
     if (!tabBar_.create(hwnd_, instance_)) {
         return false;
     }
@@ -238,10 +239,7 @@ int App::run() {
     return static_cast<int>(message.wParam);
 }
 
-void App::refreshMenuState() {
-    if (!menuBar_.hwnd()) {
-        return;
-    }
+MenuState App::currentMenuState() {
     MenuState state;
     Tab* tab = activeTab();
     state.hasTab = tab != nullptr;
@@ -259,11 +257,110 @@ void App::refreshMenuState() {
                         settings_.recent.begin() + std::min<size_t>(settings_.recent.size(), 8));
     state.tabWidth = settings_.tabWidth;
     state.useSpaces = settings_.useSpaces;
-    menuBar_.setState(state);
+    return state;
 }
 
 void App::createAccelerators() {
     accel_ = CreateAppAccelerators();
+}
+
+void App::showBurgerMenu(int section) {
+    const MenuState state = currentMenuState();
+    const bool has = state.hasTab;
+    std::vector<MenuItem> items;
+    const auto add = [&](UINT id, const std::wstring& label, const wchar_t* shortcut = L"",
+                         bool enabled = true, bool checked = false) {
+        MenuItem item;
+        item.id = id;
+        item.label = label;
+        item.shortcut = shortcut;
+        item.enabled = enabled;
+        item.checked = checked;
+        items.push_back(std::move(item));
+    };
+    const auto separator = [&]() {
+        MenuItem item;
+        item.separator = true;
+        items.push_back(std::move(item));
+    };
+
+    switch (section) {
+    case -1:
+        add(kCmdMenuFile, L"File", L"Alt+F");
+        add(kCmdMenuEdit, L"Edit", L"Alt+E");
+        add(kCmdMenuView, L"View", L"Alt+V");
+        add(kCmdMenuHelp, L"Help", L"Alt+H");
+        break;
+    case 0:
+        add(kCmdNew, L"New Tab", L"Ctrl+N");
+        add(kCmdOpen, L"Open...", L"Ctrl+O");
+        if (!state.recent.empty()) {
+            separator();
+            for (size_t i = 0; i < state.recent.size(); ++i) {
+                add(kCmdRecentBase + static_cast<UINT>(i), CompactPathLabel(state.recent[i]));
+            }
+            add(kCmdClearRecent, L"Clear Recent Files");
+        }
+        separator();
+        add(kCmdSave, L"Save", L"Ctrl+S", has);
+        add(kCmdSaveAs, L"Save As...", L"Ctrl+Shift+S", has);
+        separator();
+        add(kCmdCloseTab, L"Close Tab", L"Ctrl+W", has);
+        add(kCmdCloseOthers, L"Close Others", L"", tabs_.size() > 1);
+        add(kCmdCloseAll, L"Close All", L"", !tabs_.empty());
+        separator();
+        add(kCmdExit, L"Exit");
+        break;
+    case 1:
+        add(kCmdUndo, L"Undo", L"Ctrl+Z", state.canUndo);
+        add(kCmdRedo, L"Redo", L"Ctrl+Y", state.canRedo);
+        separator();
+        add(kCmdCut, L"Cut", L"Ctrl+X", state.hasSelection);
+        add(kCmdCopy, L"Copy", L"Ctrl+C", state.hasSelection);
+        add(kCmdPaste, L"Paste", L"Ctrl+V", has);
+        add(kCmdSelectAll, L"Select All", L"Ctrl+A", has);
+        add(kCmdOvertype, L"Overwrite", L"Insert", has, state.overtype);
+        separator();
+        add(kCmdFind, L"Find...", L"Ctrl+F", has);
+        add(kCmdReplace, L"Replace...", L"Ctrl+H", has);
+        add(kCmdFindNext, L"Find Next", L"F3", has);
+        add(kCmdFindPrev, L"Find Previous", L"Shift+F3", has);
+        add(kCmdGoToLine, L"Go to Line...", L"Ctrl+G", has);
+        separator();
+        add(kCmdTimeDate, L"Time/Date", L"F5", has);
+        break;
+    case 2:
+        add(kCmdWrap, L"Word Wrap", L"Alt+Z", has, state.wrap);
+        add(kCmdLineNumbers, L"Line Numbers", L"", true, state.lineNumbers);
+        separator();
+        add(kCmdEolCrlf, L"EOL: Windows (CRLF)", L"", has, state.eol == EolMode::Crlf);
+        add(kCmdEolLf, L"EOL: Unix (LF)", L"", has, state.eol == EolMode::Lf);
+        add(kCmdEolCr, L"EOL: Macintosh (CR)", L"", has, state.eol == EolMode::Cr);
+        separator();
+        add(kCmdZoomIn, L"Zoom In", L"Ctrl++", has);
+        add(kCmdZoomOut, L"Zoom Out", L"Ctrl+-", has);
+        add(kCmdZoomReset, L"Reset Zoom", L"Ctrl+0", has);
+        separator();
+        add(kCmdReload, L"Reload from Disk", L"Ctrl+R", has);
+        add(kCmdFont, L"Font...", L"", true);
+        separator();
+        add(kCmdTabWidth2, L"Tab Width: 2", L"", true, state.tabWidth == 2);
+        add(kCmdTabWidth4, L"Tab Width: 4", L"", true, state.tabWidth == 4);
+        add(kCmdTabWidth8, L"Tab Width: 8", L"", true, state.tabWidth == 8);
+        add(kCmdUseSpaces, L"Indent with Spaces", L"", true, state.useSpaces);
+        add(kCmdLeadingUp, L"More Line Spacing", L"");
+        add(kCmdLeadingDown, L"Less Line Spacing", L"");
+        break;
+    case 3:
+        add(kCmdAbout, L"About 67ed");
+        break;
+    default:
+        return;
+    }
+
+    POINT anchor{theme::Scale(2, dpi_), tabBar_.preferredHeight(hwnd_)};
+    ClientToScreen(hwnd_, &anchor);
+    menuBar_.showContextMenu(anchor, std::move(items));
 }
 
 void App::onCommand(UINT id) {
@@ -277,7 +374,6 @@ void App::onCommand(UINT id) {
             } else {
                 settings_.recent.erase(settings_.recent.begin() + static_cast<long long>(index));
                 SaveSettings(settings_);
-                refreshMenuState();
                 ShowError(hwnd_, L"File not found:\n" + path);
             }
         }
@@ -293,7 +389,6 @@ void App::onCommand(UINT id) {
     case kCmdClearRecent:
         settings_.recent.clear();
         SaveSettings(settings_);
-        refreshMenuState();
         break;
     case kCmdReload:
         if (tab && !tab->path.empty()) {
@@ -477,16 +572,16 @@ void App::onCommand(UINT id) {
         showAbout();
         break;
     case kCmdMenuFile:
-        menuBar_.openMenu(0);
+        showBurgerMenu(0);
         break;
     case kCmdMenuEdit:
-        menuBar_.openMenu(1);
+        showBurgerMenu(1);
         break;
     case kCmdMenuView:
-        menuBar_.openMenu(2);
+        showBurgerMenu(2);
         break;
     case kCmdMenuHelp:
-        menuBar_.openMenu(3);
+        showBurgerMenu(3);
         break;
     default:
         break;
@@ -709,17 +804,14 @@ void App::layout() {
         return;
     }
     dpi_ = DpiOfWindow(hwnd_);
-    const int menuHeight = menuBar_.preferredHeight(hwnd_);
     const int tabHeight = tabBar_.preferredHeight(hwnd_);
     const int statusHeight = statusBar_.preferredHeight(hwnd_);
     const int findHeight = findBar_.isVisible() ? findBar_.preferredHeight(hwnd_) : 0;
     const int lineHeight = lineBar_.isVisible() ? lineBar_.preferredHeight(hwnd_) : 0;
-    const int menuTop = tabHeight;
-    const int editorTop = tabHeight + menuHeight;
+    const int editorTop = tabHeight;
     const int editorHeight = std::max(0, height - editorTop - statusHeight - findHeight - lineHeight);
 
     tabBar_.layout(0, 0, width, tabHeight);
-    menuBar_.layout(0, menuTop, width, menuHeight);
     statusBar_.layout(0, height - statusHeight, width, statusHeight);
     if (findBar_.isVisible()) {
         findBar_.layout(0, height - statusHeight - findHeight, width, findHeight);
@@ -727,6 +819,7 @@ void App::layout() {
     if (lineBar_.isVisible()) {
         lineBar_.layout(0, height - statusHeight - lineHeight, width, lineHeight);
     }
+    menuBar_.layout(0, 0, 0, 0);
 
     for (size_t i = 0; i < tabs_.size(); ++i) {
         Tab& tab = *tabs_[i];
@@ -790,7 +883,6 @@ void App::updateStatus() {
         info.position = L"No document";
     }
     statusBar_.setInfo(info);
-    refreshMenuState();
     updateTitle();
 }
 
@@ -1852,8 +1944,14 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     case WM_NCHITTEST: {
         POINT client{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
         ScreenToClient(hwnd_, &client);
-        const int titleBottom = tabBar_.preferredHeight(hwnd_) + menuBar_.preferredHeight(hwnd_);
+        RECT area{};
+        GetClientRect(hwnd_, &area);
+        const int titleBottom = tabBar_.preferredHeight(hwnd_);
         if (client.x >= 0 && client.y >= 0 && client.y < titleBottom) {
+            return HTCAPTION;
+        }
+        const int statusTop = area.bottom - statusBar_.preferredHeight(hwnd_);
+        if (client.x >= 0 && client.y >= statusTop && client.y < area.bottom) {
             return HTCAPTION;
         }
         break;
@@ -1972,6 +2070,9 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     }
     case tabbar_events::kNew:
         newTab();
+        return 0;
+    case tabbar_events::kMenu:
+        showBurgerMenu(-1);
         return 0;
     case findbar_events::kNext:
         findNext(true);

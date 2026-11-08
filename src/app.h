@@ -62,7 +62,8 @@ private:
     LRESULT handleMessage(UINT message, WPARAM wParam, LPARAM lParam);
 
     void createAccelerators();
-    void refreshMenuState();
+    MenuState currentMenuState();
+    void showBurgerMenu(int section);
     void onCommand(UINT id);
 
     void restoreSession(const SessionState& session);

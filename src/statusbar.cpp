@@ -170,6 +170,8 @@ LRESULT StatusBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     }
     case WM_ERASEBKGND:
         return 1;
+    case WM_NCHITTEST:
+        return HTTRANSPARENT;
     case WM_DPICHANGED:
         dpi_ = HIWORD(wParam);
         ensureFont();

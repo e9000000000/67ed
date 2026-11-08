@@ -23,8 +23,9 @@ groups, expanding and empty replacements), go-to-line parsing/clamping,
 insert/overwrite, file-change stamps, recent-file ordering, tab-reorder
 arithmetic, read-only rejection, Unicode surrogate pairs, empty files,
 corrupt-session backup, recent-label formatting, find/line bar state, tab-bar hit
-testing, editor setting application, settings round-trip/clamping/backup, and
-crash-log writing. Expected final line: `summary passed=190 failed=0`.
+testing, status-bar drag area, editor setting application, settings
+round-trip/clamping/backup, and crash-log writing. Expected final line:
+`summary passed=195 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).
@@ -89,7 +90,10 @@ reloads from disk.
 
 Tabs: drag a tab left or right to reorder it; the new order is saved in the
 session. Right-click a tab for Close, Close Others, Close All, Copy Path, and
-Reload. File > Open Recent lists up to eight files.
+Reload. The burger File section lists up to eight recent files.
+
+Burger menu: the left title-bar button opens File / Edit / View / Help sections.
+Drag the status bar to move the window; double-click it to maximize/restore.
 
 Read-only files load with the read-only flag and refuse to save. Unhandled
 exceptions append to `%APPDATA%\67ed\logs\crash.log`.

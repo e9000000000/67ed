@@ -33,7 +33,7 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 ## What works now (M0/M1)
 
-- Native Win32 window, dark custom menu bar, tab strip, status bar, dark title bar
+- Native Win32 window, dark custom title bar with tabs and burger menu, status bar
 - One Scintilla control per tab, lazy loading, session restore (tabs, cursor,
   scroll, wrap, window placement)
 - Open via CLI, file dialog, or drag-and-drop; Save / Save As; duplicate-path focus
@@ -45,7 +45,9 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Go to line: Ctrl+G
 - File dialogs: best-effort dark theming applied to the common dialog and controls
 - Tabs: drag to reorder, middle-click to close, right-click for Close / Close
-  Others / Close All / Copy Path / Reload; recent-files menu
+  Others / Close All / Copy Path / Reload; recent-files section
+- Dark burger menu for File / Edit / View / Help; drag the status bar to move the
+  window
 - Insert/overwrite: Insert; status shows `OVR`
 - External changes: clean tabs reload automatically; dirty tabs show
   `[disk changed]` in the title; Ctrl+R reloads from disk

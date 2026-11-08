@@ -7,11 +7,10 @@ One process owns one main window and all documents.
 ```
 67ed.exe (first)
 ├─ main window
-│  ├─ custom menu bar (dark)
-│  ├─ tab strip
+│  ├─ custom title bar: burger menu + tabs + new-tab button
 │  ├─ one Scintilla HWND per tab (only the active one visible)
-│  ├─ find bar (modeless child)
-│  └─ status bar
+│  ├─ find / go-to-line bar (modeless child)
+│  └─ status bar (also a window drag area)
 ├─ session.json / settings.json
 ├─ recovery/<tab-id>.txt
 └─ single-instance listener (window class + WM_COPYDATA)
@@ -40,30 +39,30 @@ The main window uses a custom title bar. The native caption is removed with
 `WM_NCCALCSIZE`, while the resizable frame is kept; the client area is inset by
 the frame so resize hit-testing stays native. Child windows, top to bottom:
 
-1. Custom title bar / tab strip (~28 px, scaled by DPI): tabs and `+`. Tabs share
-   the full width with no gaps; window minimize/maximize/close use the system
-   hotkeys, taskbar, or the File menu.
-2. Custom menu bar (~28 px).
-3. Scintilla (fills).
-4. Find or go-to-line bar (optional, docked above status).
-5. Status bar (~24 px).
+1. Custom title bar / tab strip (~28 px, scaled by DPI): burger menu at the
+   left, then tabs and `+`. Tabs share the full width with no gaps; window
+   minimize/maximize/close use the system hotkeys, taskbar, or the File section of
+   the burger menu.
+2. Scintilla (fills).
+3. Find or go-to-line bar (optional, docked above status).
+4. Status bar (~24 px).
 
-The title/tab row and empty menu-bar space return `HTCAPTION` for drag/hit
-testing, so dragging moves the window and double-clicking maximizes; tab and
-button areas stay clickable. The blue accent line above the active tab was removed
-for a flatter, more compact look.
+The title/tab row and status bar return `HTCAPTION`, so dragging either moves the
+window and double-clicking maximizes; tab and button areas stay clickable. The
+blue accent line above the active tab was removed for a flatter, more compact look.
 
 Only one Scintilla control is visible at a time. Each tab owns a control and its
 view state, so switching tabs is a `ShowWindow` and a layout call.
 
-The custom menu bar draws `File Edit View Help`; clicking opens an owner-drawn dark
-popup. Keyboard accelerators go through `TranslateAccelerator`; Scintilla keeps its
-own editing bindings.
+The burger button opens a dark owner-drawn popup with File / Edit / View / Help;
+choosing a section opens its flat item menu in the same popup. Keyboard
+accelerators go through `TranslateAccelerator`; Scintilla keeps its own editing
+bindings.
 
 ### Dark theme
 
 - DWM frame/shadow kept dark via `DWMWA_USE_IMMERSIVE_DARK_MODE`, fallback 19.
-- Custom-drawn title/tab row, menu bar, status bar, find/line bars, dialogs.
+- Custom-drawn title/tab row with burger menu, status bar, find/line bars, dialogs.
 - Scintilla styles: default text/background, caret, current line, selection,
   margins, line numbers, whitespace.
 - Scrollbars themed with `SetWindowTheme(hwnd, L"DarkMode_Explorer", nullptr)`.
@@ -186,14 +185,14 @@ recovery file; a crash leaves it for the next launch.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 190 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 195 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit
-  testing, editor setting application, settings round-trip/backup, window
-  clamping, read-only handling, crash-log writing, Unicode surrogate pairs, empty
-  files, corrupt-session backup, and chunked save. No editor window or message box
-  appears.
+  testing, status-bar drag area, editor setting application, settings
+  round-trip/backup, window clamping, read-only handling, crash-log writing,
+  Unicode surrogate pairs, empty files, corrupt-session backup, and chunked save.
+  No editor window or message box appears.
 - `--bench <path>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - Runner scripts: `tests/run-selftest.ps1`, `tests/run-bench.ps1`,

@@ -306,6 +306,12 @@ void TestBars(TestLog& log) {
     lineBar.hide();
     log.check(!lineBar.isVisible(), "bars.line.hide");
 
+    StatusBar statusBar;
+    log.check(statusBar.create(host, instance), "bars.status.create");
+    statusBar.layout(0, 0, 800, statusBar.preferredHeight(host));
+    log.check(SendMessageW(statusBar.hwnd(), WM_NCHITTEST, 0, 0) == HTTRANSPARENT,
+              "bars.status.dragarea");
+
     DestroyWindow(findBar.hwnd());
     DestroyWindow(lineBar.hwnd());
     DestroyWindow(host);
@@ -333,12 +339,24 @@ void TestTabBar(TestLog& log) {
     };
     const int mid = std::max(1, height / 2);
     log.check(hitAt(600, mid) == HTTRANSPARENT, "tabbar.hit.empty");
+    log.check(hitAt(theme::Scale(16, dpi), mid) == HTCLIENT, "tabbar.hit.menu");
 
     tabBar.setTabs({TabVisual{L"one", false}, TabVisual{L"two", false}}, 0);
-    log.check(hitAt(theme::Scale(100, dpi), mid) == HTCLIENT, "tabbar.hit.tab");
-    const int tabWidth = (1000 - theme::Scale(34, dpi)) / 2;
-    log.check(hitAt(tabWidth - theme::Scale(15, dpi), mid) == HTCLIENT, "tabbar.hit.close");
+    log.check(hitAt(theme::Scale(32 + 100, dpi), mid) == HTCLIENT, "tabbar.hit.tab");
+    const int tabWidth = (1000 - theme::Scale(32, dpi) - theme::Scale(34, dpi)) / 2;
+    log.check(hitAt(theme::Scale(32, dpi) + tabWidth - theme::Scale(15, dpi), mid) == HTCLIENT,
+              "tabbar.hit.close");
     log.check(hitAt(1000 - theme::Scale(10, dpi), mid) == HTCLIENT, "tabbar.hit.plus");
+
+    std::vector<TabVisual> many;
+    for (int i = 0; i < 20; ++i) {
+        many.push_back(TabVisual{L"tab", false});
+    }
+    tabBar.layout(0, 0, 500, height);
+    tabBar.setTabs(std::move(many), 0);
+    log.check(hitAt(500 - theme::Scale(10, dpi), mid) == HTCLIENT,
+              "tabbar.hit.plus.overflow");
+    log.check(hitAt(theme::Scale(16, dpi), mid) == HTCLIENT, "tabbar.hit.menu.overflow");
 
     DestroyWindow(tabBar.hwnd());
     DestroyWindow(host);
