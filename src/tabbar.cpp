@@ -301,7 +301,7 @@ void TabBar::paint(HDC target) {
         const int cx = (plusRect_.left + plusRect_.right) / 2;
         const int cy = (plusRect_.top + plusRect_.bottom) / 2;
         const int half = theme::Scale(6, dpi_);
-        int thickness = std::max(2, theme::Scale(2, dpi_));
+        int thickness = std::max(2, theme::Scale(1, dpi_));
         if ((thickness % 2) != 0) {
             ++thickness;
         }
