@@ -36,13 +36,20 @@ static CRT. No Lexilla (no syntax highlighting), which keeps the binary small.
 
 ## UI layout
 
-The main window is a plain Win32 window. Child windows, top to bottom:
+The main window uses a custom title bar. The native caption is removed with
+`WM_NCCALCSIZE`, while the resizable frame is kept; the client area is inset by
+the frame so resize hit-testing stays native. Child windows, top to bottom:
 
-1. Custom menu bar (~28 px, scaled by DPI).
-2. Tab strip (~34 px).
+1. Custom title bar / tab strip (~28 px, scaled by DPI): tabs, `+`, and the
+   minimize/maximize/close buttons.
+2. Custom menu bar (~28 px).
 3. Scintilla (fills).
-4. Find bar (optional, docked above status).
+4. Find or go-to-line bar (optional, docked above status).
 5. Status bar (~24 px).
+
+The title/tab row returns `HTCAPTION` for empty space, so dragging it moves the
+window and double-clicking maximizes; tab and button areas stay clickable. The
+blue accent line above the active tab was removed for a flatter, more compact look.
 
 Only one Scintilla control is visible at a time. Each tab owns a control and its
 view state, so switching tabs is a `ShowWindow` and a layout call.
@@ -53,8 +60,8 @@ own editing bindings.
 
 ### Dark theme
 
-- DWM immersive dark title bar (`DWMWA_USE_IMMERSIVE_DARK_MODE`, fallback 19).
-- Custom-drawn menu bar, tab strip, status bar, find bar, dialogs.
+- DWM frame/shadow kept dark via `DWMWA_USE_IMMERSIVE_DARK_MODE`, fallback 19.
+- Custom-drawn title/tab row, menu bar, status bar, find/line bars, dialogs.
 - Scintilla styles: default text/background, caret, current line, selection,
   margins, line numbers, whitespace.
 - Scrollbars themed with `SetWindowTheme(hwnd, L"DarkMode_Explorer", nullptr)`.
@@ -177,13 +184,14 @@ recovery file; a crash leaves it for the next launch.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 183 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 189 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
-  stamps, recent files/labels, tab reordering, find/line bar state, editor setting
-  application, settings round-trip/backup, window clamping, read-only handling,
-  crash-log writing, Unicode surrogate pairs, empty files, corrupt-session backup,
-  and chunked save. No editor window or message box appears.
+  stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit
+  testing, editor setting application, settings round-trip/backup, window
+  clamping, read-only handling, crash-log writing, Unicode surrogate pairs, empty
+  files, corrupt-session backup, and chunked save. No editor window or message box
+  appears.
 - `--bench <path>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - Runner scripts: `tests/run-selftest.ps1`, `tests/run-bench.ps1`,

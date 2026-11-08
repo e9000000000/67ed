@@ -16,10 +16,14 @@ constexpr UINT kClose = WM_APP + 0x102;
 constexpr UINT kNew = WM_APP + 0x103;
 constexpr UINT kReorder = WM_APP + 0x104;
 constexpr UINT kContext = WM_APP + 0x105;
+constexpr UINT kMinimize = WM_APP + 0x106;
+constexpr UINT kMaximize = WM_APP + 0x107;
+constexpr UINT kCloseWindow = WM_APP + 0x108;
 }  // namespace tabbar_events
 
 class TabBar {
 public:
+    ~TabBar();
     bool create(HWND parent, HINSTANCE instance);
     HWND hwnd() const { return hwnd_; }
 
@@ -38,6 +42,7 @@ private:
     void paint(HDC dc);
     int hitTest(int x, int y) const;
     int dropIndexFromPoint(int x) const;
+    int captionHitTest(int x, int y) const;
     bool pointIn(const RECT& rect, int x, int y) const;
     void notify(UINT message, WPARAM wParam = 0, LPARAM lParam = 0);
     void ensureActiveVisible();
@@ -45,6 +50,7 @@ private:
     HWND hwnd_ = nullptr;
     HWND parent_ = nullptr;
     HFONT font_ = nullptr;
+    HFONT glyphFont_ = nullptr;
     UINT dpi_ = 96;
 
     std::vector<TabVisual> tabs_;
@@ -62,4 +68,8 @@ private:
     std::vector<RECT> tabRects_;
     std::vector<RECT> closeRects_;
     RECT plusRect_{};
+    RECT windowMinRect_{};
+    RECT windowMaxRect_{};
+    RECT windowCloseRect_{};
+    int captionHover_ = -1;
 };

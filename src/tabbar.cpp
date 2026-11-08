@@ -51,6 +51,15 @@ bool TabBar::create(HWND parent, HINSTANCE instance) {
     return true;
 }
 
+TabBar::~TabBar() {
+    if (font_) {
+        DeleteObject(font_);
+    }
+    if (glyphFont_) {
+        DeleteObject(glyphFont_);
+    }
+}
+
 void TabBar::ensureFont() {
     const UINT dpi = DpiOfWindow(hwnd_);
     if (font_ && dpi == dpi_) {
@@ -60,9 +69,15 @@ void TabBar::ensureFont() {
     if (font_) {
         DeleteObject(font_);
     }
+    if (glyphFont_) {
+        DeleteObject(glyphFont_);
+    }
     font_ = CreateFontW(-MulDiv(9, static_cast<int>(dpi_), 72), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
                         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
                         CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    glyphFont_ = CreateFontW(-MulDiv(13, static_cast<int>(dpi_), 72), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+                             DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                             CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
 }
 
 void TabBar::setTabs(std::vector<TabVisual> tabs, int active) {
@@ -115,6 +130,13 @@ int TabBar::hitTest(int x, int y) const {
     return -1;
 }
 
+int TabBar::captionHitTest(int x, int y) const {
+    if (pointIn(windowMinRect_, x, y)) return 0;
+    if (pointIn(windowMaxRect_, x, y)) return 1;
+    if (pointIn(windowCloseRect_, x, y)) return 2;
+    return -1;
+}
+
 int TabBar::dropIndexFromPoint(int x) const {
     for (size_t i = 0; i < tabRects_.size(); ++i) {
         const int center = (tabRects_[i].left + tabRects_[i].right) / 2;
@@ -144,30 +166,37 @@ void TabBar::computeLayout() {
     const int tabWidth = theme::Scale(theme::kTabWidth, dpi_);
     const int gap = theme::Scale(2, dpi_);
     const int padding = theme::Scale(10, dpi_);
-    const int plusWidth = theme::Scale(30, dpi_);
+    const int plusWidth = theme::Scale(34, dpi_);
+    const int captionButton = theme::Scale(40, dpi_);
     const int top = 0;
     const int height = client.bottom;
+    const int contentWidth = std::max(0, width - captionButton * 3);
+
+    windowCloseRect_ = {width - captionButton, 0, width, height};
+    windowMaxRect_ = {width - captionButton * 2, 0, width - captionButton, height};
+    windowMinRect_ = {width - captionButton * 3, 0, width - captionButton * 2, height};
 
     int x = padding - scrollX_;
     for (size_t i = 0; i < tabs_.size(); ++i) {
-        RECT tab{x, top + theme::Scale(3, dpi_), x + tabWidth, height};
+        RECT tab{x, top + theme::Scale(1, dpi_), x + tabWidth, height};
         tabRects_.push_back(tab);
-        RECT close{tab.right - theme::Scale(24, dpi_), tab.top, tab.right - theme::Scale(6, dpi_), tab.bottom};
+        RECT close{tab.right - theme::Scale(26, dpi_), tab.top + theme::Scale(1, dpi_),
+                   tab.right - theme::Scale(2, dpi_), tab.bottom - theme::Scale(1, dpi_)};
         closeRects_.push_back(close);
         x += tabWidth + gap;
     }
 
     const int plusX = tabs_.empty() ? padding - scrollX_ : x + theme::Scale(4, dpi_);
-    plusRect_ = {plusX, top + theme::Scale(6, dpi_), plusX + plusWidth, height - theme::Scale(4, dpi_)};
+    plusRect_ = {plusX, top + theme::Scale(2, dpi_), plusX + plusWidth, height - theme::Scale(2, dpi_)};
 
     // Clamp scroll so the last tab/plus button is reachable.
     const int contentRight = plusRect_.right + scrollX_ + padding;
-    if (contentRight <= width) {
+    if (contentRight <= contentWidth) {
         if (scrollX_ != 0) {
             scrollX_ = 0;
         }
-    } else if (scrollX_ > contentRight - width) {
-        scrollX_ = contentRight - width;
+    } else if (scrollX_ > contentRight - contentWidth) {
+        scrollX_ = contentRight - contentWidth;
     }
     if (scrollX_ < 0) {
         scrollX_ = 0;
@@ -184,7 +213,7 @@ void TabBar::ensureActiveVisible() {
     if (active_ >= static_cast<int>(tabRects_.size())) {
         return;
     }
-    const int width = client.right - client.left;
+    const int width = client.right - client.left - theme::Scale(40, dpi_) * 3;
     const RECT& rect = tabRects_[active_];
     if (rect.left < 0) {
         scrollX_ += rect.left - theme::Scale(8, dpi_);
@@ -226,10 +255,6 @@ void TabBar::paint(HDC target) {
 
         COLORREF background = active ? theme::kTabActive : (hover ? theme::kTabHover : theme::kTabInactive);
         FillRectColor(dc, rect, background);
-        if (active) {
-            RECT accent{rect.left, rect.top, rect.right, rect.top + theme::Scale(2, dpi_)};
-            FillRectColor(dc, accent, theme::kAccent);
-        }
 
         int textLeft = rect.left + theme::Scale(12, dpi_);
         if (tabs_[i].dirty) {
@@ -248,8 +273,8 @@ void TabBar::paint(HDC target) {
 
         RECT textRect = rect;
         textRect.left = textLeft;
-        textRect.right = rect.right - theme::Scale(28, dpi_);
-        textRect.top += theme::Scale(2, dpi_);
+        textRect.right = rect.right - theme::Scale(30, dpi_);
+        textRect.top += theme::Scale(1, dpi_);
         SetTextColor(dc, active ? theme::kText : theme::kTextDim);
         DrawTextW(dc, tabs_[i].title.c_str(), -1, &textRect,
                   DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
@@ -261,8 +286,10 @@ void TabBar::paint(HDC target) {
         }
         RECT closeRect = closeRects_[i];
         SetTextColor(dc, closeHover ? theme::kText : theme::kTextFaint);
+        HGDIOBJ previousFont = SelectObject(dc, glyphFont_);
         DrawTextW(dc, L"\u00D7", -1, &closeRect,
                   DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX);
+        SelectObject(dc, previousFont);
     }
 
     // Drag insertion marker.
@@ -283,8 +310,27 @@ void TabBar::paint(HDC target) {
     if (plusRect_.right >= 0 && plusRect_.left <= width) {
         SetTextColor(dc, theme::kTextDim);
         RECT plusRect = plusRect_;
+        HGDIOBJ previousFont = SelectObject(dc, glyphFont_);
         DrawTextW(dc, L"+", -1, &plusRect, DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX);
+        SelectObject(dc, previousFont);
     }
+
+    // Window caption buttons.
+    const auto drawCaptionButton = [&](const RECT& rect, const wchar_t* glyph, int hot, bool danger) {
+        const bool hovered = captionHover_ == hot;
+        if (hovered) {
+            FillRectColor(dc, rect, danger ? theme::kDanger : theme::kPanelAlt);
+        }
+        SetTextColor(dc, danger && hovered ? RGB(255, 255, 255)
+                                           : (hovered ? theme::kText : theme::kTextDim));
+        RECT textRect = rect;
+        HGDIOBJ previousFont = SelectObject(dc, glyphFont_);
+        DrawTextW(dc, glyph, -1, &textRect, DT_SINGLELINE | DT_VCENTER | DT_CENTER | DT_NOPREFIX);
+        SelectObject(dc, previousFont);
+    };
+    drawCaptionButton(windowMinRect_, L"\u2212", 0, false);
+    drawCaptionButton(windowMaxRect_, IsZoomed(parent_) ? L"\u2750" : L"\u25A1", 1, false);
+    drawCaptionButton(windowCloseRect_, L"\u00D7", 2, true);
 
     // Bottom border.
     RECT bottom{0, height - theme::Scale(1, dpi_), width, height};
@@ -328,6 +374,27 @@ LRESULT TabBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         computeLayout();
         invalidate();
         return 0;
+    case WM_NCHITTEST: {
+        POINT point{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        ScreenToClient(hwnd_, &point);
+        computeLayout();
+        if (captionHitTest(point.x, point.y) >= 0 ||
+            hitTest(point.x, point.y) >= 0 ||
+            pointIn(plusRect_, point.x, point.y)) {
+            return HTCLIENT;
+        }
+        return HTTRANSPARENT;
+    }
+    case WM_SETCURSOR:
+        if (LOWORD(lParam) == HTCLIENT) {
+            POINT point{};
+            GetCursorPos(&point);
+            ScreenToClient(hwnd_, &point);
+            const bool arrow = captionHitTest(point.x, point.y) >= 0;
+            SetCursor(LoadCursorW(nullptr, arrow ? IDC_ARROW : IDC_HAND));
+            return TRUE;
+        }
+        break;
     case WM_MOUSEMOVE: {
         const int x = GET_X_LPARAM(lParam);
         const int y = GET_Y_LPARAM(lParam);
@@ -347,6 +414,21 @@ LRESULT TabBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             }
         }
         const int hover = hitTest(x, y);
+        const int caption = captionHitTest(x, y);
+        if (caption != captionHover_) {
+            captionHover_ = caption;
+            invalidate();
+        }
+        if (caption >= 0) {
+            if (hover_ != -1 || closeHover_) {
+                hover_ = -1;
+                closeHover_ = false;
+                invalidate();
+            }
+            TRACKMOUSEEVENT track{sizeof(track), TME_LEAVE, hwnd_, 0};
+            TrackMouseEvent(&track);
+            return 0;
+        }
         bool closeHover = false;
         if (hover >= 0 && hover < static_cast<int>(closeRects_.size())) {
             closeHover = pointIn(closeRects_[hover], x, y);
@@ -361,9 +443,10 @@ LRESULT TabBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         return 0;
     }
     case WM_MOUSELEAVE:
-        if (hover_ != -1 || closeHover_) {
+        if (hover_ != -1 || closeHover_ || captionHover_ != -1) {
             hover_ = -1;
             closeHover_ = false;
+            captionHover_ = -1;
             invalidate();
         }
         return 0;
@@ -372,6 +455,18 @@ LRESULT TabBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         const int x = GET_X_LPARAM(lParam);
         const int y = GET_Y_LPARAM(lParam);
         computeLayout();
+        const int caption = captionHitTest(x, y);
+        if (caption >= 0) {
+            SetFocus(hwnd_);
+            if (caption == 0) {
+                notify(tabbar_events::kMinimize);
+            } else if (caption == 1) {
+                notify(tabbar_events::kMaximize);
+            } else {
+                notify(tabbar_events::kCloseWindow);
+            }
+            return 0;
+        }
         if (pointIn(plusRect_, x, y)) {
             notify(tabbar_events::kNew);
             return 0;

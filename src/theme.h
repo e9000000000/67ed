@@ -24,7 +24,7 @@ constexpr COLORREF kInput = RGB(48, 48, 52);
 constexpr COLORREF kDanger = RGB(241, 76, 76);
 
 constexpr int kMenuHeight = 30;
-constexpr int kTabHeight = 34;
+constexpr int kTabHeight = 28;
 constexpr int kStatusHeight = 24;
 constexpr int kTabWidth = 190;
 constexpr int kTabMinWidth = 96;

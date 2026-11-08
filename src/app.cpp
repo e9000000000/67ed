@@ -146,7 +146,7 @@ bool App::create(const std::vector<std::wstring>& initialPaths) {
     const bool haveSession = LoadSession(session);
 
     hwnd_ = CreateWindowExW(WS_EX_ACCEPTFILES, kMainClass, L"67ed",
-                            WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+                            (WS_OVERLAPPEDWINDOW & ~WS_CAPTION) | WS_CLIPCHILDREN,
                             CW_USEDEFAULT, CW_USEDEFAULT, 1100, 760,
                             nullptr, nullptr, instance_, this);
     if (!hwnd_) {
@@ -714,12 +714,12 @@ void App::layout() {
     const int statusHeight = statusBar_.preferredHeight(hwnd_);
     const int findHeight = findBar_.isVisible() ? findBar_.preferredHeight(hwnd_) : 0;
     const int lineHeight = lineBar_.isVisible() ? lineBar_.preferredHeight(hwnd_) : 0;
-    const int tabTop = menuHeight;
-    const int editorTop = tabTop + tabHeight;
+    const int menuTop = tabHeight;
+    const int editorTop = tabHeight + menuHeight;
     const int editorHeight = std::max(0, height - editorTop - statusHeight - findHeight - lineHeight);
 
-    menuBar_.layout(0, 0, width, menuHeight);
-    tabBar_.layout(0, tabTop, width, tabHeight);
+    tabBar_.layout(0, 0, width, tabHeight);
+    menuBar_.layout(0, menuTop, width, menuHeight);
     statusBar_.layout(0, height - statusHeight, width, statusHeight);
     if (findBar_.isVisible()) {
         findBar_.layout(0, height - statusHeight - findHeight, width, findHeight);
@@ -1834,6 +1834,30 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     case WM_COMMAND:
         onCommand(LOWORD(wParam));
         return 0;
+    case WM_NCCALCSIZE:
+        if (wParam) {
+            auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
+            const UINT dpi = DpiOfWindow(hwnd_);
+            const int frameX = GetSystemMetricsForDpi(SM_CXSIZEFRAME, dpi) +
+                               GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+            const int frameY = GetSystemMetricsForDpi(SM_CYSIZEFRAME, dpi) +
+                               GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
+            params->rgrc[0].left += frameX;
+            params->rgrc[0].right -= frameX;
+            params->rgrc[0].top += frameY;
+            params->rgrc[0].bottom -= frameY;
+            return 0;
+        }
+        break;
+    case WM_NCHITTEST: {
+        POINT client{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        ScreenToClient(hwnd_, &client);
+        const int titleBottom = tabBar_.preferredHeight(hwnd_) + menuBar_.preferredHeight(hwnd_);
+        if (client.x >= 0 && client.y >= 0 && client.y < titleBottom) {
+            return HTCAPTION;
+        }
+        break;
+    }
     case WM_SIZE:
         layout();
         return 0;
@@ -1948,6 +1972,15 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     }
     case tabbar_events::kNew:
         newTab();
+        return 0;
+    case tabbar_events::kMinimize:
+        ShowWindow(hwnd_, SW_MINIMIZE);
+        return 0;
+    case tabbar_events::kMaximize:
+        ShowWindow(hwnd_, IsZoomed(hwnd_) ? SW_RESTORE : SW_MAXIMIZE);
+        return 0;
+    case tabbar_events::kCloseWindow:
+        PostMessageW(hwnd_, WM_CLOSE, 0, 0);
         return 0;
     case findbar_events::kNext:
         findNext(true);

@@ -311,6 +311,36 @@ void TestBars(TestLog& log) {
     DestroyWindow(host);
 }
 
+void TestTabBar(TestLog& log) {
+    HWND host = CreateHost();
+    log.check(host != nullptr, "tabbar.host");
+    if (!host) {
+        return;
+    }
+    const HINSTANCE instance = GetModuleHandleW(nullptr);
+    const UINT dpi = DpiOfWindow(host);
+    TabBar tabBar;
+    log.check(tabBar.create(host, instance), "tabbar.create");
+    const int height = tabBar.preferredHeight(host);
+    tabBar.layout(0, 0, 1000, height);
+    tabBar.setTabs({TabVisual{L"one", false}, TabVisual{L"two", false}}, 0);
+    log.check(height == theme::Scale(theme::kTabHeight, dpi), "tabbar.height");
+
+    const auto hitAt = [&](int x, int y) {
+        POINT point{x, y};
+        ClientToScreen(tabBar.hwnd(), &point);
+        return static_cast<LRESULT>(SendMessageW(tabBar.hwnd(), WM_NCHITTEST, 0,
+                                                 MAKELPARAM(point.x, point.y)));
+    };
+    const int mid = std::max(1, height / 2);
+    log.check(hitAt(theme::Scale(100, dpi), mid) == HTCLIENT, "tabbar.hit.tab");
+    log.check(hitAt(600, mid) == HTTRANSPARENT, "tabbar.hit.empty");
+    log.check(hitAt(1000 - theme::Scale(20, dpi), mid) == HTCLIENT, "tabbar.hit.close");
+
+    DestroyWindow(tabBar.hwnd());
+    DestroyWindow(host);
+}
+
 void TestJson(TestLog& log) {
     Json root;
     std::string error;
@@ -848,6 +878,7 @@ int RunSelfTest(const std::wstring& logPath) {
     TestIpc(log);
     TestWindowRect(log);
     TestBars(log);
+    TestTabBar(log);
     TestJson(log);
     TestFileIo(log, dir);
     TestSession(log, dir);
@@ -904,8 +935,8 @@ int RunStartupBench(const std::wstring& logPath) {
         return 1;
     }
 
-    menuBar.layout(0, 0, 1200, 30);
-    tabBar.layout(0, 30, 1200, 34);
+    tabBar.layout(0, 0, 1200, theme::kTabHeight);
+    menuBar.layout(0, theme::kTabHeight, 1200, 30);
     statusBar.layout(0, 776, 1200, 24);
     findBar.layout(0, 736, 1200, 40);
     lineBar.layout(0, 736, 1200, 40);

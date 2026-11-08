@@ -629,6 +629,14 @@ LRESULT MenuBar::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     }
     case WM_ERASEBKGND:
         return 1;
+    case WM_NCHITTEST: {
+        POINT point{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+        ScreenToClient(hwnd_, &point);
+        if (titleFromPoint(point.x, point.y) >= 0) {
+            return HTCLIENT;
+        }
+        return HTTRANSPARENT;
+    }
     case WM_MOUSEMOVE: {
         const int x = GET_X_LPARAM(lParam);
         const int y = GET_Y_LPARAM(lParam);

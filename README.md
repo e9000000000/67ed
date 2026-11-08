@@ -4,7 +4,7 @@ A native Windows text editor: dark, tabbed, session-restoring, comfortable with
 100 MB files.
 
 - Native Win32 + Scintilla, C++20, static build — one small `.exe`
-- Dark chrome and editor, custom tab strip
+- Dark chrome, compact title bar with integrated tabs and window buttons
 - Tabs, session restore, crash recovery, single-instance handoff
 - Fonts, word wrap, find/replace, zoom, recent files
 - UTF-8/UTF-16/ANSI, CRLF/LF/CR, 100 MB target
