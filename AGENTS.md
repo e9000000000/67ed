@@ -37,6 +37,14 @@ The build script locates Visual Studio via `vswhere`, imports `vcvars64.bat`,
 builds Scintilla as a static library, compiles the app with `/MT`, and links one
 EXE. Do not add a runtime DLL, installer, or package manager requirement.
 
+## Releases
+
+`.github/workflows/build.yml` builds on GitHub Actions and publishes
+`build\67ed.exe`. Pushes to `main` update the `latest` pre-release; `v*` tags
+create versioned releases. Every run also uploads a `67ed-windows-x64` artifact.
+Keep `build.bat` as the single build entry point; the workflow must not add
+installer/DLL requirements.
+
 ## Run
 
 ```powershell
@@ -86,6 +94,8 @@ tests/
   run-selftest.ps1  headless self-test runner
   run-bench.ps1     hidden fixture + benchmark runner
   run-startup.ps1   hidden chrome construction benchmark
+.github/
+  workflows/build.yml  CI build, artifacts, and releases
 ```
 
 ## Non-negotiable rules

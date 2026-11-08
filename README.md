@@ -1,5 +1,7 @@
 # 67ed
 
+[![Build](https://github.com/e9000000000/67ed/actions/workflows/build.yml/badge.svg)](https://github.com/e9000000000/67ed/actions/workflows/build.yml)
+
 A native Windows text editor: dark, tabbed, session-restoring, comfortable with
 100 MB files.
 
@@ -17,6 +19,17 @@ Requires Visual Studio Build Tools (MSVC) and the Windows 10/11 SDK.
 .\build.bat
 .\build\67ed.exe
 ```
+
+## Releases
+
+GitHub Actions builds every push to `main` and every `v*` tag:
+
+- `main` updates the [Latest build](https://github.com/e9000000000/67ed/releases/tag/latest)
+  pre-release with `67ed.exe`.
+- A `v1.2.3` tag creates a versioned release with the same executable.
+- Every run also uploads a `67ed-windows-x64` workflow artifact.
+
+Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 ## What works now (M0/M1)
 
