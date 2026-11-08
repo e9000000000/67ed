@@ -10,6 +10,8 @@ LaunchOptions ParseOptions(const std::vector<std::wstring>& args) {
             options.selfTest = true;
         } else if (arg == L"--bench-startup") {
             options.startupBench = true;
+        } else if (arg == L"--register-default") {
+            options.registerDefaultEditor = true;
         } else if (arg == L"--bench" && i + 1 < args.size()) {
             options.bench = true;
             options.benchFile = args[++i];

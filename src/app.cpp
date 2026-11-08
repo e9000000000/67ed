@@ -22,6 +22,7 @@
 #include "json.h"
 #include "linenav.h"
 #include "search.h"
+#include "shellintegration.h"
 #include "theme.h"
 #include "util.h"
 #include "windowrect.h"
@@ -33,6 +34,8 @@ constexpr wchar_t kAppName[] = L"67ed";
 constexpr UINT_PTR kTimerSession = 1;
 constexpr UINT_PTR kTimerRecovery = 2;
 constexpr UINT_PTR kTimerWatch = 3;
+constexpr UINT_PTR kTimerStatusMessage = 4;
+constexpr UINT kStatusMessageMs = 4000;
 constexpr UINT kRecoveryIntervalMs = 5000;
 constexpr unsigned long long kLargeBufferBytes = 32ull * 1024ull * 1024ull;
 constexpr ULONGLONG kLargeRecoveryIntervalMs = 60000;
@@ -309,6 +312,8 @@ void App::showBurgerMenu(int section) {
         add(kCmdCloseOthers, L"Close Others", L"", tabs_.size() > 1);
         add(kCmdCloseAll, L"Close All", L"", !tabs_.empty());
         separator();
+        add(kCmdSetDefaultEditor, L"Set as Default Text Editor...", L"", true,
+            shellintegration::IsDefaultEditor());
         add(kCmdExit, L"Exit");
         break;
     case 1:
@@ -567,6 +572,9 @@ void App::onCommand(UINT id) {
         if (!tabs_.empty()) {
             selectTab((active_ - 1 + static_cast<int>(tabs_.size())) % static_cast<int>(tabs_.size()));
         }
+        break;
+    case kCmdSetDefaultEditor:
+        makeDefaultEditor();
         break;
     case kCmdAbout:
         showAbout();
@@ -882,8 +890,17 @@ void App::updateStatus() {
     } else {
         info.position = L"No document";
     }
+    if (!statusMessage_.empty()) {
+        info.message = statusMessage_;
+    }
     statusBar_.setInfo(info);
     updateTitle();
+}
+
+void App::setStatusMessage(const std::wstring& message) {
+    statusMessage_ = message;
+    updateStatus();
+    SetTimer(hwnd_, kTimerStatusMessage, kStatusMessageMs, nullptr);
 }
 
 void App::updateTitle() {
@@ -1804,6 +1821,26 @@ void App::insertTimeDate() {
     editor::Focus(tab->sci);
 }
 
+void App::makeDefaultEditor() {
+    const shellintegration::RegisterResult result = shellintegration::RegisterAsDefaultEditor();
+    if (!result.registered) {
+        ShowError(hwnd_, L"Could not register 67ed as a text editor.\n\n" + result.error);
+        return;
+    }
+    if (result.alreadyDefault) {
+        setStatusMessage(L"67ed is already the default text editor.");
+        return;
+    }
+    if (shellintegration::OpenDefaultAppsSettings()) {
+        setStatusMessage(L"Choose 67ed in Default Apps to finish setting the default.");
+        return;
+    }
+    MessageBoxW(hwnd_,
+                L"67ed has been registered as a text editor.\n\n"
+                L"Open Settings > Apps > Default apps and select 67ed for .txt files.",
+                L"Set Default Text Editor", MB_OK | MB_ICONINFORMATION);
+}
+
 void App::showAbout() {
     MessageBoxW(hwnd_,
                 L"67ed\n\nA native, tabbed text editor.\n"
@@ -1972,6 +2009,10 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             }
         } else if (wParam == kTimerWatch) {
             checkDiskChanges();
+        } else if (wParam == kTimerStatusMessage) {
+            KillTimer(hwnd_, kTimerStatusMessage);
+            statusMessage_.clear();
+            updateStatus();
         }
         return 0;
     case WM_SETFOCUS: {

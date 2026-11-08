@@ -18,8 +18,7 @@ drag-reorder and context menu, a recent-files menu, external-change
 watching/reload, crash logging, best-effort dark file dialogs, and dirty-buffer
 crash recovery. 100 MB files are measured in `docs/PERF.md`.
 
-Known gaps: optional file associations, final DPI/visual pass, and visible-window
-startup measurement.
+Known gaps: final DPI/visual pass and visible-window startup measurement.
 Read `docs/PLAN.md` for the milestone plan and `docs/ARCHITECTURE.md` for the design.
 
 ## Build
@@ -51,7 +50,12 @@ installer/DLL requirements.
 build\67ed.exe                 # restore session or open an empty tab
 build\67ed.exe file.txt        # open a file (or add a tab to the running instance)
 build\67ed.exe a.txt b.txt     # multiple tabs
+build\67ed.exe --register-default  # per-user default-editor registration
 ```
+
+`--register-default` writes the per-user `HKCU\Software\Classes` and
+`RegisteredApplications` entries and exits. The burger menu item also opens the
+Windows Default Apps page, because Windows protects the final UserChoice value.
 
 Single-instance behavior: the first process owns the window; later launches send
 their paths over `WM_COPYDATA` and exit in a few milliseconds. The running instance
@@ -78,6 +82,7 @@ src/
   filewatch.*       external file-change stamps
   crashlog.*        unhandled-exception log
   session.*         session/settings persistence, recovery snapshots
+  shellintegration.* per-user default-editor registration and Default Apps handoff
   windowrect.*      monitor work-area clamping for restored windows
   json.*            small JSON value/parser/serializer
   theme.h           palette and UI metrics
@@ -164,8 +169,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
   read-only handling, crash-log writing, CLI parsing, accelerator wiring,
   single-instance payloads, window clamping, Unicode surrogate pairs, corrupt
   session backup, recent labels, find/line bars, editor setting application,
-  settings round-trip/backup, tab-bar hit testing, status-bar drag area, and
-  chunked save. Expect `summary passed=195 failed=0`.
+  settings round-trip/backup, tab-bar hit testing, status-bar drag area, shell
+  registration helpers, and chunked save. Expect `summary passed=202 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.

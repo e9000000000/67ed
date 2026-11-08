@@ -9,6 +9,7 @@ struct LaunchOptions {
     bool bench = false;
     bool startupBench = false;
     bool makeFixture = false;
+    bool registerDefaultEditor = false;
     bool oneLine = false;
     std::wstring benchFile;
     std::wstring fixturePath;

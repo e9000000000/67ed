@@ -12,6 +12,7 @@
 #include "crashlog.h"
 #include "headless.h"
 #include "ipc.h"
+#include "shellintegration.h"
 #include "util.h"
 
 namespace {
@@ -44,8 +45,8 @@ bool SendToRunningInstance(const std::vector<std::wstring>& paths) {
     return SendMessageW(target, WM_COPYDATA, 0, reinterpret_cast<LPARAM>(&copy)) == TRUE;
 }
 
-void Report(const wchar_t* message) {
-    MessageBoxW(nullptr, message, L"67ed", MB_OK | MB_ICONERROR);
+void Report(const std::wstring& message) {
+    MessageBoxW(nullptr, message.c_str(), L"67ed", MB_OK | MB_ICONERROR);
 }
 
 }  // namespace
@@ -82,6 +83,16 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
         }
         Scintilla_ReleaseResources();
         return result;
+    }
+
+    if (options.registerDefaultEditor) {
+        const shellintegration::RegisterResult result =
+            shellintegration::RegisterAsDefaultEditor();
+        if (!result.registered) {
+            Report(L"Could not register 67ed as a text editor.\n\n" + result.error);
+            return 1;
+        }
+        return 0;
     }
 
     EnableDarkModeForApp();

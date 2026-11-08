@@ -33,8 +33,9 @@
 - **M4 in progress.** Crash logging, the bench/test suite, hidden chrome startup
   measurement, monitor-safe window restore, best-effort dark file dialogs, a
   compact custom title bar with integrated full-width tabs, and GitHub Actions
-  build/release packaging are done. Remaining: optional file associations, a manual
-  DPI/visual pass, and visible-window startup measurement.
+  build/release packaging, a matching multi-size icon, and per-user default-editor
+  registration are done. Remaining: a manual DPI/visual pass and visible-window
+  startup measurement.
 
 Latest measured 98.4 MiB file: 440 ms open, 226 ms chunked save, 210 MB RSS after
 save. Release EXE 1.38 MiB. See `docs/PERF.md`.
@@ -101,7 +102,7 @@ encoding matrix round-trips byte-for-byte when unedited.
 ### M4 — Polish and packaging
 
 - High-DPI pass (125/150/200%), dark native-ish dialogs, scrollbar theming.
-- Crash log, optional file associations, portable mode.
+- Crash log, per-user default-editor registration, portable mode.
 - Bench suite and unit tests wired into the build.
 - Final size/startup budget check.
 

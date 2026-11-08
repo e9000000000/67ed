@@ -7,6 +7,7 @@ A native Windows text editor: dark, tabbed, session-restoring, comfortable with
 
 - Native Win32 + Scintilla, C++20, static build — one small `.exe`
 - Dark chrome, compact title bar with full-width integrated tabs
+- Flat rounded-square icon; optional per-user default-editor registration
 - Tabs, session restore, crash recovery, single-instance handoff
 - Fonts, word wrap, find/replace, zoom, recent files
 - UTF-8/UTF-16/ANSI, CRLF/LF/CR, 100 MB target
@@ -48,6 +49,8 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
   Others / Close All / Copy Path / Reload; recent-files section
 - Dark burger menu for File / Edit / View / Help; drag the status bar to move the
   window
+- Set as Default Text Editor: per-user registration plus the Windows Default Apps
+  page (also `build\67ed.exe --register-default`)
 - Insert/overwrite: Insert; status shows `OVR`
 - External changes: clean tabs reload automatically; dirty tabs show
   `[disk changed]` in the title; Ctrl+R reloads from disk
@@ -55,12 +58,11 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
-- Headless `--selftest` (65 checks) and `--bench` modes; no windows are shown
+- Headless `--selftest` (202 checks) and `--bench` modes; no windows are shown
 - 100 MB class files: no-wrap large-file mode, measured 440 ms open / 226 ms save,
   210 MB RSS after save (`docs/PERF.md`)
 
-Not there yet: optional file associations, the final DPI/visual pass, and
-visible-window startup measurement.
+Not there yet: the final DPI/visual pass and visible-window startup measurement.
 
 ## Status
 

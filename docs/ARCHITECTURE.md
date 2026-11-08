@@ -172,6 +172,22 @@ recovery file; a crash leaves it for the next launch.
 - If sending fails (UIPI, hung first instance), show a clear error; do not start a
   second instance.
 
+## File associations
+
+`src/shellintegration.cpp` registers the current executable per user:
+
+- `HKCU\Software\Classes\Applications\67ed.exe` for open-with and the icon.
+- `HKCU\Software\Classes\67ed.Text` as the programmatic identifier.
+- `HKCU\Software\Classes\<ext>\OpenWithProgids` plus `OpenWithList\67ed.exe` for
+  common text extensions.
+- `HKCU\Software\67ed\Capabilities` and
+  `HKCU\Software\RegisteredApplications\67ed` for the Default Apps page.
+
+Windows 10/11 protect the final per-extension `UserChoice` value, so the app
+cannot silently become the default. The burger menu entry registers and then
+opens `ms-settings:defaultapps?registeredAppUser=67ed`; the user confirms 67ed
+for `.txt`. `--register-default` performs only the silent registration.
+
 ## Build
 
 - `build.bat`: locate VS via `vswhere`, import `vcvars64.bat`.
@@ -185,12 +201,13 @@ recovery file; a crash leaves it for the next launch.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 195 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 202 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit
-  testing, status-bar drag area, editor setting application, settings
-  round-trip/backup, window clamping, read-only handling, crash-log writing,
+  testing, status-bar drag area, shell registration helpers, editor setting
+  application, settings round-trip/backup, window clamping, read-only handling,
+  crash-log writing,
   Unicode surrogate pairs, empty files, corrupt-session backup, and chunked save.
   No editor window or message box appears.
 - `--bench <path>`: internal open/RSS/find/scroll/save timings on a real file.

@@ -116,6 +116,7 @@ private:
     void resetZoom();
     void convertEol(EolMode eol);
     void insertTimeDate();
+    void makeDefaultEditor();
     void showAbout();
     void setStatusMessage(const std::wstring& message);
 
@@ -142,4 +143,5 @@ private:
     bool closing_ = false;
     bool sessionValid_ = false;
     bool recoveryTimerActive_ = false;
+    std::wstring statusMessage_;
 };

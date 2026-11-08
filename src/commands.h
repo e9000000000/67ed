@@ -38,6 +38,7 @@ enum : unsigned int {
     kCmdLeadingDown,
     kCmdNextTab,
     kCmdPrevTab,
+    kCmdSetDefaultEditor,
     kCmdAbout,
     kCmdMenuFile,
     kCmdMenuEdit,

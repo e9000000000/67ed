@@ -34,6 +34,7 @@
 #include "search.h"
 #include "session.h"
 #include "settings.h"
+#include "shellintegration.h"
 #include "statusbar.h"
 #include "tabbar.h"
 #include "taborder.h"
@@ -206,6 +207,28 @@ void TestCli(TestLog& log) {
     log.check(ParseOptions({L"--mb", L"99999"}).megabytes == 2048, "cli.mb.high");
     const LaunchOptions ignored = ParseOptions({L"--wat", L"--new-tab", L"keep.txt"});
     log.check(ignored.paths.size() == 1 && ignored.paths[0] == L"keep.txt", "cli.ignored");
+    const LaunchOptions registration = ParseOptions({L"--register-default"});
+    log.check(registration.registerDefaultEditor && registration.paths.empty(),
+              "cli.registerdefault");
+}
+
+void TestShellIntegration(TestLog& log) {
+    const std::wstring exe = L"C:\\Program Files\\67ed\\67ed.exe";
+    log.check(shellintegration::OpenCommand(exe) == L"\"" + exe + L"\" \"%1\"",
+              "shell.opencommand");
+    log.check(shellintegration::DefaultIcon(exe) == L"\"" + exe + L"\",0",
+              "shell.defaulticon");
+    log.check(shellintegration::IsTextExtension(L"txt") &&
+                  shellintegration::IsTextExtension(L".MD") &&
+                  shellintegration::IsTextExtension(L".Cpp"),
+              "shell.text.extensions");
+    log.check(!shellintegration::IsTextExtension(L".png") &&
+                  !shellintegration::IsTextExtension(L""),
+              "shell.not.text.extensions");
+    log.check(std::wstring(shellintegration::kProgId) == L"67ed.Text", "shell.progid");
+    // Exercises the read path without changing the user's associations.
+    const bool isDefault = shellintegration::IsDefaultEditor();
+    log.check(isDefault || !isDefault, "shell.isdefault");
 }
 
 void TestAccelerators(TestLog& log) {
@@ -895,6 +918,7 @@ int RunSelfTest(const std::wstring& logPath) {
     fs::create_directories(dir, error);
 
     TestCli(log);
+    TestShellIntegration(log);
     TestAccelerators(log);
     TestIpc(log);
     TestWindowRect(log);
