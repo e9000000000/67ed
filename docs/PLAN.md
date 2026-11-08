@@ -32,9 +32,9 @@
   Reload from Disk (Ctrl+R).
 - **M4 in progress.** Crash logging, the bench/test suite, hidden chrome startup
   measurement, monitor-safe window restore, best-effort dark file dialogs, and a
-  compact custom title bar with integrated tabs and window buttons are done.
-  Remaining: optional file associations, a manual DPI/visual pass, and
-  visible-window startup measurement.
+  compact custom title bar with integrated full-width tabs are done. Remaining:
+  optional file associations, a manual DPI/visual pass, and visible-window startup
+  measurement.
 
 Latest measured 98.4 MiB file: 440 ms open, 226 ms chunked save, 210 MB RSS after
 save. Release EXE 1.38 MiB. See `docs/PERF.md`.

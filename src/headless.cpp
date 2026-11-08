@@ -323,7 +323,6 @@ void TestTabBar(TestLog& log) {
     log.check(tabBar.create(host, instance), "tabbar.create");
     const int height = tabBar.preferredHeight(host);
     tabBar.layout(0, 0, 1000, height);
-    tabBar.setTabs({TabVisual{L"one", false}, TabVisual{L"two", false}}, 0);
     log.check(height == theme::Scale(theme::kTabHeight, dpi), "tabbar.height");
 
     const auto hitAt = [&](int x, int y) {
@@ -333,9 +332,13 @@ void TestTabBar(TestLog& log) {
                                                  MAKELPARAM(point.x, point.y)));
     };
     const int mid = std::max(1, height / 2);
-    log.check(hitAt(theme::Scale(100, dpi), mid) == HTCLIENT, "tabbar.hit.tab");
     log.check(hitAt(600, mid) == HTTRANSPARENT, "tabbar.hit.empty");
-    log.check(hitAt(1000 - theme::Scale(20, dpi), mid) == HTCLIENT, "tabbar.hit.close");
+
+    tabBar.setTabs({TabVisual{L"one", false}, TabVisual{L"two", false}}, 0);
+    log.check(hitAt(theme::Scale(100, dpi), mid) == HTCLIENT, "tabbar.hit.tab");
+    const int tabWidth = (1000 - theme::Scale(34, dpi)) / 2;
+    log.check(hitAt(tabWidth - theme::Scale(15, dpi), mid) == HTCLIENT, "tabbar.hit.close");
+    log.check(hitAt(1000 - theme::Scale(10, dpi), mid) == HTCLIENT, "tabbar.hit.plus");
 
     DestroyWindow(tabBar.hwnd());
     DestroyWindow(host);

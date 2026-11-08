@@ -1973,15 +1973,6 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
     case tabbar_events::kNew:
         newTab();
         return 0;
-    case tabbar_events::kMinimize:
-        ShowWindow(hwnd_, SW_MINIMIZE);
-        return 0;
-    case tabbar_events::kMaximize:
-        ShowWindow(hwnd_, IsZoomed(hwnd_) ? SW_RESTORE : SW_MAXIMIZE);
-        return 0;
-    case tabbar_events::kCloseWindow:
-        PostMessageW(hwnd_, WM_CLOSE, 0, 0);
-        return 0;
     case findbar_events::kNext:
         findNext(true);
         return 0;

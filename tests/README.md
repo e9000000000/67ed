@@ -24,7 +24,7 @@ insert/overwrite, file-change stamps, recent-file ordering, tab-reorder
 arithmetic, read-only rejection, Unicode surrogate pairs, empty files,
 corrupt-session backup, recent-label formatting, find/line bar state, tab-bar hit
 testing, editor setting application, settings round-trip/clamping/backup, and
-crash-log writing. Expected final line: `summary passed=189 failed=0`.
+crash-log writing. Expected final line: `summary passed=190 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).
