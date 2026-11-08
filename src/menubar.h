@@ -43,6 +43,7 @@ public:
     void layout(int x, int y, int width, int height);
     int preferredHeight(HWND reference) const;
     void setState(const MenuState& state);
+    void setFont(const std::wstring& face, int points);
     void openMenu(int index);
     void showContextMenu(POINT screenPoint, std::vector<MenuItem> items);
     void closeMenu();
@@ -78,6 +79,8 @@ private:
     HINSTANCE instance_ = nullptr;
     HFONT font_ = nullptr;
     UINT dpi_ = 96;
+    std::wstring fontFace_ = L"Segoe UI";
+    int fontSize_ = 9;
     MenuState state_;
     std::vector<MenuDef> menus_;
     std::vector<MenuItem> contextItems_;

@@ -25,7 +25,7 @@ arithmetic, read-only rejection, Unicode surrogate pairs, empty files,
 corrupt-session backup, recent-label formatting, find/line bar state, tab-bar hit
 testing, status-bar drag area, editor setting application, settings
 round-trip/clamping/backup, and crash-log writing. Expected final line:
-`summary passed=202 failed=0`.
+`summary passed=207 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).
@@ -94,6 +94,10 @@ Reload. The burger File section lists up to eight recent files.
 
 Burger menu: the left title-bar button opens File / Edit / View / Help sections.
 Drag the status bar to move the window; double-click it to maximize/restore.
+
+Interface font: burger View → Interface Font... (Ctrl+Shift+U) changes the tab
+strip, status bar, find/line bars, and menus. Editor Font... changes only the
+document text. Both persist across restarts.
 
 Default editor: burger File → Set as Default Text Editor registers 67ed per user
 and opens Windows Default Apps. With `UserChoice` protected by Windows, confirm

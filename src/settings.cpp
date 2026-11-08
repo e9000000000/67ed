@@ -91,6 +91,11 @@ bool LoadSettingsFile(const std::wstring& path, Settings& settings) {
     }
     settings.fontFamily = Utf8ToWide(root["fontFamily"].asString("Cascadia Mono"));
     settings.fontSize = static_cast<int>(root["fontSize"].asInt(11));
+    settings.uiFontFace = Utf8ToWide(root["uiFontFace"].asString("Segoe UI"));
+    settings.uiFontSize = static_cast<int>(root["uiFontSize"].asInt(9));
+    if (settings.uiFontFace.empty()) {
+        settings.uiFontFace = L"Segoe UI";
+    }
     settings.extraLeading = static_cast<int>(root["extraLeading"].asInt(0));
     settings.tabWidth = static_cast<int>(root["tabWidth"].asInt(4));
     settings.useSpaces = root["useSpaces"].asBool(false);
@@ -110,6 +115,7 @@ bool LoadSettingsFile(const std::wstring& path, Settings& settings) {
     if (settings.fontSize < 6 || settings.fontSize > 72) {
         settings.fontSize = 11;
     }
+    settings.uiFontSize = std::clamp(settings.uiFontSize, 6, 36);
     if (settings.tabWidth < 1 || settings.tabWidth > 16) {
         settings.tabWidth = 4;
     }
@@ -126,6 +132,8 @@ bool SaveSettingsFile(const std::wstring& path, const Settings& settings) {
     Json root = Json::MakeObject();
     root["fontFamily"] = Json(WideToUtf8(settings.fontFamily));
     root["fontSize"] = Json(settings.fontSize);
+    root["uiFontFace"] = Json(WideToUtf8(settings.uiFontFace));
+    root["uiFontSize"] = Json(settings.uiFontSize);
     root["extraLeading"] = Json(settings.extraLeading);
     root["tabWidth"] = Json(settings.tabWidth);
     root["useSpaces"] = Json(settings.useSpaces);

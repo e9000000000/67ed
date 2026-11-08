@@ -253,6 +253,7 @@ void TestAccelerators(TestLog& log) {
     log.check(has(FVIRTKEY, VK_INSERT, kCmdOvertype) &&
               has(FVIRTKEY, VK_F3, kCmdFindNext) &&
               has(FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev), "accel.extra");
+    log.check(has(FVIRTKEY | FCONTROL | FSHIFT, 'U', kCmdUiFont), "accel.uifont");
     if (table) {
         DestroyAcceleratorTable(table);
     }
@@ -335,6 +336,17 @@ void TestBars(TestLog& log) {
     log.check(SendMessageW(statusBar.hwnd(), WM_NCHITTEST, 0, 0) == HTTRANSPARENT,
               "bars.status.dragarea");
 
+    findBar.setFont(L"Consolas", 12);
+    lineBar.setFont(L"Consolas", 12);
+    statusBar.setFont(L"Consolas", 12);
+    log.check(findBar.preferredHeight(host) ==
+                  theme::Scale(std::max(72, 12 + 63), dpi), "bars.find.fontheight");
+    log.check(lineBar.preferredHeight(host) ==
+                  theme::Scale(std::max(40, 12 + 31), dpi), "bars.line.fontheight");
+    log.check(statusBar.preferredHeight(host) ==
+                  theme::Scale(std::max(theme::kStatusHeight, 12 + 15), dpi),
+              "bars.status.fontheight");
+
     DestroyWindow(findBar.hwnd());
     DestroyWindow(lineBar.hwnd());
     DestroyWindow(host);
@@ -353,6 +365,9 @@ void TestTabBar(TestLog& log) {
     const int height = tabBar.preferredHeight(host);
     tabBar.layout(0, 0, 1000, height);
     log.check(height == theme::Scale(theme::kTabHeight, dpi), "tabbar.height");
+    tabBar.setFont(L"Consolas", 12);
+    log.check(tabBar.preferredHeight(host) == theme::Scale(12 + 19, dpi),
+              "tabbar.fontheight");
 
     const auto hitAt = [&](int x, int y) {
         POINT point{x, y};
@@ -754,6 +769,8 @@ void TestSettings(TestLog& log, const fs::path& dir) {
     Settings saved;
     saved.fontFamily = L"Consolas";
     saved.fontSize = 13;
+    saved.uiFontFace = L"Segoe UI";
+    saved.uiFontSize = 11;
     saved.extraLeading = 2;
     saved.tabWidth = 8;
     saved.useSpaces = true;
@@ -766,12 +783,14 @@ void TestSettings(TestLog& log, const fs::path& dir) {
     Settings loaded;
     log.check(LoadSettingsFile(settingsPath.wstring(), loaded), "settings.load");
     log.check(loaded.fontFamily == L"Consolas" && loaded.fontSize == 13 &&
+              loaded.uiFontFace == L"Segoe UI" && loaded.uiFontSize == 11 &&
               loaded.extraLeading == 2 && loaded.tabWidth == 8 && loaded.useSpaces &&
               !loaded.wrap && !loaded.lineNumbers && loaded.zoom == 2 &&
               loaded.recent.size() == 1, "settings.roundtrip");
 
     Settings invalid;
     invalid.fontSize = 999;
+    invalid.uiFontSize = 999;
     invalid.tabWidth = 0;
     invalid.extraLeading = 99;
     invalid.zoom = 999;
@@ -779,8 +798,9 @@ void TestSettings(TestLog& log, const fs::path& dir) {
     log.check(SaveSettingsFile(invalidPath.wstring(), invalid), "settings.invalid.save");
     Settings clamped;
     log.check(LoadSettingsFile(invalidPath.wstring(), clamped) &&
-              clamped.fontSize == 11 && clamped.tabWidth == 4 &&
-              clamped.extraLeading == 16 && clamped.zoom == 30, "settings.clamped");
+              clamped.fontSize == 11 && clamped.uiFontSize == 36 &&
+              clamped.tabWidth == 4 && clamped.extraLeading == 16 &&
+              clamped.zoom == 30, "settings.clamped");
 
     const fs::path corruptPath = dir / "settings-corrupt.json";
     log.check(WriteBytes(corruptPath, "{broken"), "settings.corrupt.write");

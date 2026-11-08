@@ -30,7 +30,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1 `
 
 | Metric | Result |
 |---|---|
-| EXE size | 1,533,952 bytes (1.46 MiB) |
+| EXE size | 1,540,096 bytes (1.47 MiB) |
 | Read + decode | 264 ms |
 | Load into Scintilla (`SCI_ADDTEXT`) | 163 ms |
 | Open total (read + load) | 440 ms |

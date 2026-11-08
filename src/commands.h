@@ -30,6 +30,7 @@ enum : unsigned int {
     kCmdZoomOut,
     kCmdZoomReset,
     kCmdFont,
+    kCmdUiFont,
     kCmdTabWidth2,
     kCmdTabWidth4,
     kCmdTabWidth8,

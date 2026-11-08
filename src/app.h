@@ -102,7 +102,8 @@ private:
 
     void toggleWrap();
     void toggleLineNumbers();
-    void showFontDialog();
+    void showFontDialog(bool interfaceFont);
+    void applyUiFont();
     void showFind(bool replace = false);
     void hideFind();
     void showGoToLine();
@@ -128,7 +129,6 @@ private:
     HWND hwnd_ = nullptr;
     HACCEL accel_ = nullptr;
     HBRUSH backgroundBrush_ = nullptr;
-    HFONT uiFont_ = nullptr;
 
     MenuBar menuBar_;
     TabBar tabBar_;

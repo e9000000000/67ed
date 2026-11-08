@@ -17,6 +17,7 @@ public:
     bool create(HWND parent, HINSTANCE instance);
     HWND hwnd() const { return hwnd_; }
 
+    void setFont(const std::wstring& face, int points);
     void layout(int x, int y, int width, int height);
     int preferredHeight(HWND reference) const;
 
@@ -55,6 +56,8 @@ private:
     HFONT font_ = nullptr;
     HBRUSH editBrush_ = nullptr;
     UINT dpi_ = 96;
+    std::wstring fontFace_ = L"Segoe UI";
+    int fontSize_ = 9;
     bool visible_ = false;
     bool replaceMode_ = false;
     bool matchCase_ = false;

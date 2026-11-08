@@ -9,7 +9,7 @@ A native Windows text editor: dark, tabbed, session-restoring, comfortable with
 - Dark chrome, compact title bar with full-width integrated tabs
 - Flat rounded-square icon; optional per-user default-editor registration
 - Tabs, session restore, crash recovery, single-instance handoff
-- Fonts, word wrap, find/replace, zoom, recent files
+- Editor and interface fonts, word wrap, find/replace, zoom, recent files
 - UTF-8/UTF-16/ANSI, CRLF/LF/CR, 100 MB target
 
 ## Build
@@ -39,8 +39,8 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
   scroll, wrap, window placement)
 - Open via CLI, file dialog, or drag-and-drop; Save / Save As; duplicate-path focus
 - Single instance: a later launch adds a tab to the running window and exits
-- Word wrap, line numbers, EOL conversion, zoom, font dialog, tab width,
-  indent-with-spaces, line spacing
+- Word wrap, line numbers, EOL conversion, zoom, editor font, interface font,
+  tab width, indent-with-spaces, line spacing
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
 - Go to line: Ctrl+G
@@ -58,7 +58,7 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
-- Headless `--selftest` (202 checks) and `--bench` modes; no windows are shown
+- Headless `--selftest` (207 checks) and `--bench` modes; no windows are shown
 - 100 MB class files: no-wrap large-file mode, measured 440 ms open / 226 ms save,
   210 MB RSS after save (`docs/PERF.md`)
 

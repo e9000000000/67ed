@@ -71,16 +71,33 @@ void LineBar::ensureFont() {
     if (font_) {
         DeleteObject(font_);
     }
-    font_ = CreateFontW(-MulDiv(9, static_cast<int>(dpi_), 72), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    font_ = CreateFontW(-MulDiv(fontSize_, static_cast<int>(dpi_), 72), 0, 0, 0, FW_NORMAL, FALSE,
+                        FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, fontFace_.c_str());
     if (edit_) {
         SendMessageW(edit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
     }
 }
 
+void LineBar::setFont(const std::wstring& face, int points) {
+    const std::wstring nextFace = face.empty() ? L"Segoe UI" : face;
+    points = std::clamp(points, 6, 36);
+    if (points == fontSize_ && _wcsicmp(nextFace.c_str(), fontFace_.c_str()) == 0) {
+        return;
+    }
+    fontFace_ = nextFace;
+    fontSize_ = points;
+    if (font_) {
+        DeleteObject(font_);
+        font_ = nullptr;
+    }
+    ensureFont();
+    computeRects();
+    invalidate();
+}
+
 int LineBar::preferredHeight(HWND reference) const {
-    return theme::Scale(40, DpiOfWindow(reference));
+    return theme::Scale(std::max(40, fontSize_ + 31), DpiOfWindow(reference));
 }
 
 void LineBar::layout(int x, int y, int width, int height) {
@@ -104,9 +121,9 @@ void LineBar::computeRects() {
     const int height = client.bottom;
     const int pad = theme::Scale(10, dpi_);
     const int gap = theme::Scale(4, dpi_);
-    const int button = theme::Scale(24, dpi_);
-    const int closeWidth = theme::Scale(26, dpi_);
-    const int labelWidth = theme::Scale(74, dpi_);
+    const int button = theme::Scale(std::max(24, fontSize_ + 15), dpi_);
+    const int closeWidth = theme::Scale(std::max(26, fontSize_ + 17), dpi_);
+    const int labelWidth = theme::Scale(std::max(74, fontSize_ + 65), dpi_);
     const int y = (height - button) / 2;
 
     closeRect_ = {width - pad - closeWidth, y, width - pad, y + button};

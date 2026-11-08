@@ -48,9 +48,25 @@ void StatusBar::ensureFont() {
     if (font_) {
         DeleteObject(font_);
     }
-    font_ = CreateFontW(-MulDiv(9, static_cast<int>(dpi_), 72), 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-                        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-                        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+    font_ = CreateFontW(-MulDiv(fontSize_, static_cast<int>(dpi_), 72), 0, 0, 0, FW_NORMAL, FALSE,
+                        FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                        CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, fontFace_.c_str());
+}
+
+void StatusBar::setFont(const std::wstring& face, int points) {
+    const std::wstring nextFace = face.empty() ? L"Segoe UI" : face;
+    points = std::clamp(points, 6, 36);
+    if (points == fontSize_ && _wcsicmp(nextFace.c_str(), fontFace_.c_str()) == 0) {
+        return;
+    }
+    fontFace_ = nextFace;
+    fontSize_ = points;
+    if (font_) {
+        DeleteObject(font_);
+        font_ = nullptr;
+    }
+    ensureFont();
+    invalidate();
 }
 
 void StatusBar::setInfo(const StatusInfo& info) {
@@ -68,7 +84,7 @@ void StatusBar::layout(int x, int y, int width, int height) {
 }
 
 int StatusBar::preferredHeight(HWND reference) const {
-    return theme::Scale(theme::kStatusHeight, DpiOfWindow(reference));
+    return theme::Scale(std::max(theme::kStatusHeight, fontSize_ + 15), DpiOfWindow(reference));
 }
 
 void StatusBar::invalidate() {

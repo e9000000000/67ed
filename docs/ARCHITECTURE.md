@@ -59,6 +59,12 @@ choosing a section opens its flat item menu in the same popup. Keyboard
 accelerators go through `TranslateAccelerator`; Scintilla keeps its own editing
 bindings.
 
+The editor font (`fontFamily` / `fontSize`) is applied to Scintilla. The interface
+font (`uiFontFace` / `uiFontSize`, default Segoe UI 9 pt) is applied to the tab
+strip, status bar, find bar, line bar, and popup menu. Both are chosen through
+`ChooseFontW`, saved in `settings.json`, and the chrome bars grow their preferred
+heights with the interface font size so larger text is not clipped.
+
 ### Dark theme
 
 - DWM frame/shadow kept dark via `DWMWA_USE_IMMERSIVE_DARK_MODE`, fallback 19.
@@ -201,13 +207,13 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 202 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 207 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit
   testing, status-bar drag area, shell registration helpers, editor setting
-  application, settings round-trip/backup, window clamping, read-only handling,
-  crash-log writing,
+  application, interface/editor font settings, settings round-trip/backup, window
+  clamping, read-only handling, crash-log writing,
   Unicode surrogate pairs, empty files, corrupt-session backup, and chunked save.
   No editor window or message box appears.
 - `--bench <path>`: internal open/RSS/find/scroll/save timings on a real file.

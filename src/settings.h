@@ -6,6 +6,8 @@
 struct Settings {
     std::wstring fontFamily = L"Cascadia Mono";
     int fontSize = 11;
+    std::wstring uiFontFace = L"Segoe UI";
+    int uiFontSize = 9;
     int extraLeading = 0;
     int tabWidth = 4;
     bool useSpaces = false;

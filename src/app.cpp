@@ -115,9 +115,6 @@ App::~App() {
     if (backgroundBrush_) {
         DeleteObject(backgroundBrush_);
     }
-    if (uiFont_) {
-        DeleteObject(uiFont_);
-    }
 }
 
 bool App::create(const std::vector<std::wstring>& initialPaths) {
@@ -177,6 +174,7 @@ bool App::create(const std::vector<std::wstring>& initialPaths) {
     if (!lineBar_.create(hwnd_, instance_)) {
         return false;
     }
+    applyUiFont();
 
     bool placed = false;
     if (haveSession && session.hasWindow) {
@@ -347,7 +345,8 @@ void App::showBurgerMenu(int section) {
         add(kCmdZoomReset, L"Reset Zoom", L"Ctrl+0", has);
         separator();
         add(kCmdReload, L"Reload from Disk", L"Ctrl+R", has);
-        add(kCmdFont, L"Font...", L"", true);
+        add(kCmdFont, L"Editor Font...", L"", true);
+        add(kCmdUiFont, L"Interface Font...", L"Ctrl+Shift+U", true);
         separator();
         add(kCmdTabWidth2, L"Tab Width: 2", L"", true, state.tabWidth == 2);
         add(kCmdTabWidth4, L"Tab Width: 4", L"", true, state.tabWidth == 4);
@@ -539,7 +538,10 @@ void App::onCommand(UINT id) {
         resetZoom();
         break;
     case kCmdFont:
-        showFontDialog();
+        showFontDialog(false);
+        break;
+    case kCmdUiFont:
+        showFontDialog(true);
         break;
     case kCmdTabWidth2:
     case kCmdTabWidth4:
@@ -1457,21 +1459,26 @@ bool App::showSaveDialog(std::wstring& path, const Tab* tab) {
     return !path.empty();
 }
 
-void App::showFontDialog() {
+void App::showFontDialog(bool interfaceFont) {
+    const std::wstring currentFace =
+        interfaceFont ? settings_.uiFontFace : settings_.fontFamily;
+    const int currentSize = interfaceFont ? settings_.uiFontSize : settings_.fontSize;
     LOGFONTW logFont{};
-    logFont.lfHeight = -MulDiv(std::max(6, settings_.fontSize), static_cast<int>(dpi_), 72);
+    logFont.lfHeight = -MulDiv(std::max(6, currentSize), static_cast<int>(dpi_), 72);
     logFont.lfWeight = FW_NORMAL;
     logFont.lfCharSet = DEFAULT_CHARSET;
-    wcsncpy_s(logFont.lfFaceName, settings_.fontFamily.c_str(), _TRUNCATE);
+    wcsncpy_s(logFont.lfFaceName, currentFace.c_str(), _TRUNCATE);
 
     CHOOSEFONTW choose{};
     choose.lStructSize = sizeof(choose);
     choose.hwndOwner = hwnd_;
     choose.lpLogFont = &logFont;
-    choose.iPointSize = settings_.fontSize * 10;
-    choose.Flags = CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT | CF_FORCEFONTEXIST |
-                   CF_NOVERTFONTS | CF_EFFECTS;
-    choose.rgbColors = theme::kText;
+    choose.iPointSize = currentSize * 10;
+    choose.Flags = CF_SCREENFONTS | CF_INITTOLOGFONTSTRUCT | CF_NOVERTFONTS;
+    if (!interfaceFont) {
+        choose.Flags |= CF_FORCEFONTEXIST | CF_EFFECTS;
+        choose.rgbColors = theme::kText;
+    }
     if (!ChooseFontW(&choose)) {
         return;
     }
@@ -1480,13 +1487,34 @@ void App::showFontDialog() {
     if (size <= 0) {
         size = MulDiv(-logFont.lfHeight, 72, static_cast<int>(dpi_));
     }
-    settings_.fontSize = std::clamp(size, 6, 72);
-    if (logFont.lfFaceName[0] != L'\0') {
-        settings_.fontFamily = logFont.lfFaceName;
+    std::wstring face = logFont.lfFaceName;
+    if (face.empty()) {
+        face = L"Segoe UI";
     }
-    applySettingsToAll();
+    if (interfaceFont) {
+        settings_.uiFontFace = face;
+        settings_.uiFontSize = std::clamp(size, 6, 36);
+        applyUiFont();
+    } else {
+        settings_.fontFamily = face;
+        settings_.fontSize = std::clamp(size, 6, 72);
+        applySettingsToAll();
+    }
     SaveSettings(settings_);
     markSessionDirty();
+    setStatusMessage(std::wstring(interfaceFont ? L"Interface font: " : L"Editor font: ") +
+                     face + L" " + std::to_wstring(interfaceFont ? settings_.uiFontSize
+                                                                  : settings_.fontSize) +
+                     L" pt");
+}
+
+void App::applyUiFont() {
+    menuBar_.setFont(settings_.uiFontFace, settings_.uiFontSize);
+    tabBar_.setFont(settings_.uiFontFace, settings_.uiFontSize);
+    statusBar_.setFont(settings_.uiFontFace, settings_.uiFontSize);
+    findBar_.setFont(settings_.uiFontFace, settings_.uiFontSize);
+    lineBar_.setFont(settings_.uiFontFace, settings_.uiFontSize);
+    layout();
 }
 
 std::string App::selectedText() {
