@@ -1,0 +1,44 @@
+#pragma once
+
+#include <windows.h>
+
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace markdown {
+
+enum class Style : unsigned char {
+    Text = 0,
+    H1,
+    H2,
+    H3,
+    H4,
+    H5,
+    H6,
+    Bold,
+    Italic,
+    BoldItalic,
+    Code,
+    CodeBlock,
+    Link,
+    Quote,
+    ListBullet,
+    Rule,
+    Count,
+};
+
+struct Document {
+    std::string text;
+    std::vector<unsigned char> styles;
+};
+
+// Converts Markdown into plain text plus per-byte style runs.
+Document Render(std::string_view source);
+
+// Replaces the contents of a Scintilla control with a rendered document and
+// configures the preview styles. The control's STYLE_DEFAULT font/size should
+// already be set by editor::ApplySettings.
+void RenderToScintilla(HWND sci, std::string_view source);
+
+}  // namespace markdown

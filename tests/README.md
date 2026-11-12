@@ -25,8 +25,9 @@ arithmetic, read-only rejection, Unicode surrogate pairs, empty files,
 corrupt-session backup, recent-label formatting, find/line bar state, tab-bar hit
 testing, status-bar drag area, editor setting application, settings
 round-trip/clamping/backup, syntax language detection and style application, and
-crash-log writing, line selection/moves, multi-cursor state, and occurrence
-indicators across selections. Expected final line: `summary passed=242 failed=0`.
+crash-log writing, line selection/moves, multi-cursor state, occurrence
+indicators across selections, and Markdown rendering. Expected final line:
+`summary passed=249 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).
@@ -111,6 +112,10 @@ the current line and repeated presses extend it. Alt+Up/Down move the current li
 or selected lines. Ctrl+D selects the word at the caret and then adds following
 occurrences as multiple cursors. Select a word to see other visible occurrences
 highlighted with a blue fill. Hold Win and drag anywhere to move the window.
+
+Markdown preview: open a `.md` file, press Ctrl+Shift+M (or View → Markdown
+Preview) to switch to the styled read-only view; press it again to return to the
+source. Editing is done in the source view.
 
 Default editor: burger File → Set as Default Text Editor registers 67ed per user
 and opens Windows Default Apps. With `UserChoice` protected by Windows, confirm

@@ -16,8 +16,8 @@ indent-with-spaces / line-spacing controls, syntax highlighting from Lexilla, a
 find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3, match case, whole word,
 regex, replace all), go-to-line (Ctrl+G), insert/overwrite (Insert), line
 cut/copy/select (Ctrl+X/Ctrl+C on an empty selection, Ctrl+L), Alt+Up/Down line
-moves, multi-cursor (Ctrl+D), occurrence highlighting, Win-key window dragging,
-tab drag-reorder and
+moves, multi-cursor (Ctrl+D), occurrence highlighting, Markdown preview
+(Ctrl+Shift+M), Win-key window dragging, tab drag-reorder and
 context menu, a recent-files menu, external-change
 watching/reload, crash logging, best-effort dark file dialogs, and dirty-buffer
 crash recovery. 100 MB files are measured in `docs/PERF.md`.
@@ -82,6 +82,7 @@ src/
   linebar.*         dark go-to-line bar
   linenav.*         line-number parsing and clamping
   editor.*          per-tab Scintilla wrapper, theme, view state, chunked save
+  markdown.*        native Markdown renderer and preview styling
   syntax.*          language detection, Lexilla setup, dark syntax palette
   headless.*        --selftest / --bench / --make-fixture, hidden host only
   fileio.*          file read/write, encoding/EOL detection, atomic save
@@ -179,8 +180,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
   settings round-trip/backup, tab-bar hit testing, status-bar drag area, shell
   registration helpers, interface/editor font settings, syntax detection and
   styling, scrollbar synchronization, line selection/moves, multi-cursor state,
-  occurrence indicators across multiple selections, and chunked save. Expect
-  `summary passed=242 failed=0`.
+  occurrence indicators across multiple selections, Markdown rendering, and
+  chunked save. Expect `summary passed=249 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.

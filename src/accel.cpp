@@ -29,6 +29,7 @@ HACCEL CreateAppAccelerators() {
         {FVIRTKEY | FCONTROL, VK_SUBTRACT, kCmdZoomOut},
         {FVIRTKEY | FCONTROL, '0', kCmdZoomReset},
         {FVIRTKEY | FCONTROL | FSHIFT, 'U', kCmdUiFont},
+        {FVIRTKEY | FCONTROL | FSHIFT, 'M', kCmdMarkdownPreview},
         {FVIRTKEY | FCONTROL, VK_TAB, kCmdNextTab},
         {FVIRTKEY | FCONTROL | FSHIFT, VK_TAB, kCmdPrevTab},
         {FVIRTKEY | FCONTROL, 'F', kCmdFind},

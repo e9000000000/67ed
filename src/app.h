@@ -19,6 +19,7 @@
 
 struct Tab {
     HWND sci = nullptr;
+    HWND previewControl = nullptr;
     std::wstring id;
     std::wstring path;
     std::wstring displayName;
@@ -28,6 +29,7 @@ struct Tab {
     bool loaded = false;
     bool readOnly = false;
     bool dirty = false;
+    bool preview = false;
     syntax::Language language = syntax::Language::Plain;
     Encoding encoding = Encoding::Utf8;
     bool bom = false;
@@ -84,6 +86,7 @@ private:
 
     int activeIndex() const { return active_; }
     Tab* activeTab();
+    HWND activeControl();
     Tab* tabFromSci(HWND sci);
     int indexOfTab(const Tab* tab) const;
     int findTabByPath(const std::wstring& path) const;
@@ -120,6 +123,9 @@ private:
     void convertEol(EolMode eol);
     void insertTimeDate();
     void makeDefaultEditor();
+    void toggleMarkdownPreview();
+    bool ensurePreview(Tab& tab);
+    void refreshPreview(Tab& tab);
     void showAbout();
     void setStatusMessage(const std::wstring& message);
 

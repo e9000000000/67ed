@@ -8,7 +8,7 @@ One process owns one main window and all documents.
 67ed.exe (first)
 ├─ main window
 │  ├─ custom title bar: burger menu + tabs + new-tab button
-│  ├─ one Scintilla HWND per tab (only the active one visible)
+│  ├─ one Scintilla HWND per tab plus an optional Markdown preview
 │  ├─ find / go-to-line bar (modeless child)
 │  └─ status bar (also a window drag area)
 ├─ session.json / settings.json
@@ -83,6 +83,24 @@ Scintilla supplies most of the editing behaviour directly:
   occurrence is selected. Scrolling refreshes the window, so huge files stay
   responsive.
 
+## Markdown preview
+
+`src/markdown.cpp` is a small native renderer, not a browser:
+
+- `Render` scans blocks (ATX/Setext headings, fenced code, quotes, lists, rules,
+  links, images, and paragraphs) and inline markers (`**bold**`, `*italic*`,
+  `` `code` ``, links). It returns UTF-8 text plus a style byte per output byte.
+- `RenderToScintilla` applies a preview style set (headings in larger bold text,
+  inline code with a panel background, underlined links, quote/list colours) and
+  loads the result into a read-only Scintilla control with wrapping, no margin,
+  and an invisible caret.
+- Each tab owns an optional preview HWND created on first use. Ctrl+Shift+M
+  toggles `tab.preview`; only the active control is shown, and the source buffer
+  is never replaced. The source stays authoritative for saving, dirty state,
+  session restore, and reloads.
+- Preview is offered only for `syntax::Language::Markdown`. A Save As that changes
+  the extension away from Markdown leaves preview mode.
+
 ## UI layout
 
 The main window uses a custom title bar. The native caption is removed with
@@ -102,7 +120,9 @@ window and double-clicking maximizes; tab and button areas stay clickable. The
 blue accent line above the active tab was removed for a flatter, more compact look.
 
 Only one Scintilla control is visible at a time. Each tab owns a control and its
-view state, so switching tabs is a `ShowWindow` and a layout call.
+view state, so switching tabs is a `ShowWindow` and a layout call. A Markdown tab
+may also own a read-only preview control; switching preview/source is the same
+show/hide operation.
 
 The burger button opens a dark owner-drawn popup with File / Edit / View / Help;
 choosing a section opens its flat item menu in the same popup. Keyboard
@@ -257,7 +277,7 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 242 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 249 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit

@@ -31,6 +31,7 @@
 #include "json.h"
 #include "linebar.h"
 #include "linenav.h"
+#include "markdown.h"
 #include "menubar.h"
 #include "search.h"
 #include "session.h"
@@ -255,7 +256,9 @@ void TestAccelerators(TestLog& log) {
     log.check(has(FVIRTKEY, VK_INSERT, kCmdOvertype) &&
               has(FVIRTKEY, VK_F3, kCmdFindNext) &&
               has(FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev), "accel.extra");
-    log.check(has(FVIRTKEY | FCONTROL | FSHIFT, 'U', kCmdUiFont), "accel.uifont");
+    log.check(has(FVIRTKEY | FCONTROL | FSHIFT, 'U', kCmdUiFont) &&
+                  has(FVIRTKEY | FCONTROL | FSHIFT, 'M', kCmdMarkdownPreview),
+              "accel.uifont");
     log.check(has(FVIRTKEY | FCONTROL, 'L', kCmdSelectLine) &&
                   has(FVIRTKEY | FCONTROL, 'D', kCmdSelectNextOccurrence) &&
                   has(FVIRTKEY | FALT, VK_UP, kCmdMoveLineUp) &&
@@ -951,6 +954,70 @@ void TestSyntax(TestLog& log) {
     DestroyWindow(host);
 }
 
+void TestMarkdown(TestLog& log) {
+    const std::string source = R"MD(# Title
+
+This is **bold** and *italic* and `code`.
+
+- item one
+- item two
+
+> quote
+
+```cpp
+int x = 1;
+```
+
+[site](https://example.com)
+
+---
+)MD";
+    const markdown::Document doc = markdown::Render(source);
+    const auto styleOf = [&](std::string_view needle) -> int {
+        const size_t pos = doc.text.find(needle);
+        if (pos == std::string::npos || pos >= doc.styles.size()) {
+            return -1;
+        }
+        return static_cast<int>(doc.styles[pos]);
+    };
+    log.check(doc.text.size() == doc.styles.size(), "markdown.styles.sized");
+    log.check(doc.text.find("# Title") == std::string::npos &&
+                  doc.text.find("**bold**") == std::string::npos &&
+                  doc.text.find("```") == std::string::npos &&
+                  doc.text.find("\u2022 item one") != std::string::npos &&
+                  doc.text.find("\u2502 quote") != std::string::npos &&
+                  doc.text.find("site (https://example.com)") != std::string::npos,
+              "markdown.text");
+    log.check(styleOf("Title") == static_cast<int>(markdown::Style::H1) &&
+                  styleOf("bold") == static_cast<int>(markdown::Style::Bold) &&
+                  styleOf("italic") == static_cast<int>(markdown::Style::Italic) &&
+                  styleOf("code") == static_cast<int>(markdown::Style::Code),
+              "markdown.inline");
+    log.check(styleOf("int x = 1;") == static_cast<int>(markdown::Style::CodeBlock) &&
+                  styleOf("quote") == static_cast<int>(markdown::Style::Quote) &&
+                  styleOf("site") == static_cast<int>(markdown::Style::Link) &&
+                  styleOf("\u2500") == static_cast<int>(markdown::Style::Rule),
+              "markdown.blocks");
+
+    HWND host = CreateHost();
+    log.check(host != nullptr, "markdown.host");
+    if (!host) {
+        return;
+    }
+    HWND sci = editor::Create(host, GetModuleHandleW(nullptr));
+    log.check(sci != nullptr, "markdown.editor");
+    if (sci) {
+        editor::ApplySettings(sci, TestSettings());
+        markdown::RenderToScintilla(sci, "# Title\n\nbody\n");
+        log.check(SendMessageW(sci, SCI_GETSTYLEAT, 0, 0) ==
+                          static_cast<LRESULT>(markdown::Style::H1) &&
+                      SendMessageW(sci, SCI_GETREADONLY, 0, 0) != 0,
+                  "markdown.scintilla");
+        DestroyWindow(sci);
+    }
+    DestroyWindow(host);
+}
+
 void TestEditingCommands(TestLog& log) {
     HWND host = CreateHost();
     log.check(host != nullptr, "editing.host");
@@ -1171,6 +1238,7 @@ int RunSelfTest(const std::wstring& logPath) {
     TestSettings(log, dir);
     TestScintilla(log, dir);
     TestSyntax(log);
+    TestMarkdown(log);
     TestEditingCommands(log);
     TestTabOrder(log);
 

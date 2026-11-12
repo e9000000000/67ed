@@ -28,6 +28,7 @@ enum : unsigned int {
     kCmdWrap,
     kCmdLineNumbers,
     kCmdSyntaxHighlighting,
+    kCmdMarkdownPreview,
     kCmdEolCrlf,
     kCmdEolLf,
     kCmdEolCr,

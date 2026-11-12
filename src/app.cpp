@@ -21,6 +21,7 @@
 #include "ipc.h"
 #include "json.h"
 #include "linenav.h"
+#include "markdown.h"
 #include "search.h"
 #include "shellintegration.h"
 #include "theme.h"
@@ -269,6 +270,9 @@ void App::createAccelerators() {
 void App::showBurgerMenu(int section) {
     const MenuState state = currentMenuState();
     const bool has = state.hasTab;
+    const Tab* active = activeTab();
+    const bool isMarkdown =
+        active && active->loaded && active->language == syntax::Language::Markdown;
     std::vector<MenuItem> items;
     const auto add = [&](UINT id, const std::wstring& label, const wchar_t* shortcut = L"",
                          bool enabled = true, bool checked = false) {
@@ -342,6 +346,8 @@ void App::showBurgerMenu(int section) {
         add(kCmdLineNumbers, L"Line Numbers", L"", true, state.lineNumbers);
         add(kCmdSyntaxHighlighting, L"Syntax Highlighting", L"", true,
             state.syntaxHighlighting);
+        add(kCmdMarkdownPreview, L"Markdown Preview", L"Ctrl+Shift+M", isMarkdown,
+            active && active->preview);
         separator();
         add(kCmdEolCrlf, L"EOL: Windows (CRLF)", L"", has, state.eol == EolMode::Crlf);
         add(kCmdEolLf, L"EOL: Unix (LF)", L"", has, state.eol == EolMode::Lf);
@@ -376,6 +382,28 @@ void App::showBurgerMenu(int section) {
 
 void App::onCommand(UINT id) {
     Tab* tab = activeTab();
+    if (tab && tab->preview) {
+        // Preview is read-only; never let an editing command modify the hidden
+        // source buffer.
+        switch (id) {
+        case kCmdCut:
+        case kCmdPaste:
+        case kCmdUndo:
+        case kCmdRedo:
+        case kCmdSelectLine:
+        case kCmdSelectNextOccurrence:
+        case kCmdMoveLineUp:
+        case kCmdMoveLineDown:
+        case kCmdOvertype:
+        case kCmdTimeDate:
+        case kCmdEolCrlf:
+        case kCmdEolLf:
+        case kCmdEolCr:
+            return;
+        default:
+            break;
+        }
+    }
     if (id >= kCmdRecentBase && id < kCmdRecentBase + 8) {
         const size_t index = static_cast<size_t>(id - kCmdRecentBase);
         if (index < settings_.recent.size()) {
@@ -483,19 +511,19 @@ void App::onCommand(UINT id) {
         break;
     case kCmdCut:
         // With an empty selection this cuts the whole current line.
-        Sci(tab, SCI_CUTALLOWLINE);
+        SendMessageW(activeControl(), SCI_CUTALLOWLINE, 0, 0);
         updateStatus();
         break;
     case kCmdCopy:
         // With an empty selection this copies the whole current line.
-        Sci(tab, SCI_COPYALLOWLINE);
+        SendMessageW(activeControl(), SCI_COPYALLOWLINE, 0, 0);
         break;
     case kCmdPaste:
         Sci(tab, SCI_PASTE);
         updateStatus();
         break;
     case kCmdSelectAll:
-        Sci(tab, SCI_SELECTALL);
+        SendMessageW(activeControl(), SCI_SELECTALL, 0, 0);
         updateStatus();
         break;
     case kCmdSelectLine:
@@ -562,6 +590,9 @@ void App::onCommand(UINT id) {
         markSessionDirty();
         setStatusMessage(settings_.syntaxHighlighting ? L"Syntax highlighting on"
                                                        : L"Syntax highlighting off");
+        break;
+    case kCmdMarkdownPreview:
+        toggleMarkdownPreview();
         break;
     case kCmdEolCrlf:
         convertEol(EolMode::Crlf);
@@ -883,11 +914,23 @@ void App::layout() {
         }
         SetWindowPos(tab.sci, nullptr, 0, editorTop, width, editorHeight,
                      SWP_NOZORDER | SWP_NOACTIVATE);
-        if (static_cast<int>(i) == active_) {
+        const bool activeTab = static_cast<int>(i) == active_;
+        const bool showPreview = activeTab && tab.preview && tab.previewControl;
+        if (activeTab && !showPreview) {
             ShowWindow(tab.sci, SW_SHOW);
             editor::SyncScrollBars(tab.sci);
         } else {
             ShowWindow(tab.sci, SW_HIDE);
+        }
+        if (tab.previewControl) {
+            SetWindowPos(tab.previewControl, nullptr, 0, editorTop, width, editorHeight,
+                         SWP_NOZORDER | SWP_NOACTIVATE);
+            if (showPreview) {
+                ShowWindow(tab.previewControl, SW_SHOW);
+                editor::SyncScrollBars(tab.previewControl);
+            } else {
+                ShowWindow(tab.previewControl, SW_HIDE);
+            }
         }
     }
 }
@@ -940,6 +983,9 @@ void App::updateStatus() {
         if (tab->readOnly) {
             info.message = L"Read-only";
         }
+        if (tab->preview) {
+            info.message = L"Markdown preview";
+        }
         info.size = FormatBytes(editor::Length(tab->sci));
     } else if (tab) {
         info.position = L"Loading...";
@@ -971,6 +1017,9 @@ void App::updateTitle() {
     if (tab && tab->diskChanged) {
         title += L" [disk changed]";
     }
+    if (tab && tab->preview) {
+        title += L" [preview]";
+    }
     title += L" - ";
     title += kAppName;
     SetWindowTextW(hwnd_, title.c_str());
@@ -981,6 +1030,14 @@ Tab* App::activeTab() {
         return nullptr;
     }
     return tabs_[active_].get();
+}
+
+HWND App::activeControl() {
+    Tab* tab = activeTab();
+    if (!tab) {
+        return nullptr;
+    }
+    return tab->preview && tab->previewControl ? tab->previewControl : tab->sci;
 }
 
 Tab* App::tabFromSci(HWND sci) {
@@ -1193,6 +1250,9 @@ bool App::reloadTabFromDisk(Tab& tab, bool force) {
     editor::SetEol(tab.sci, tab.eol);
     editor::SetReadOnly(tab.sci, tab.readOnly);
     editor::UpdateLineNumberWidth(tab.sci);
+    if (tab.preview) {
+        refreshPreview(tab);
+    }
 
     clearRecovery(tab);
     tab.dirty = false;
@@ -1283,8 +1343,13 @@ void App::selectTab(int index) {
     updateTabBar();
     updateStatus();
     updateTitle();
-    editor::HighlightOccurrences(tabs_[index]->sci);
-    editor::Focus(tabs_[index]->sci);
+    Tab& selected = *tabs_[index];
+    if (selected.preview && selected.previewControl) {
+        SetFocus(selected.previewControl);
+    } else {
+        editor::HighlightOccurrences(selected.sci);
+        editor::Focus(selected.sci);
+    }
     markSessionDirty();
 }
 
@@ -1309,6 +1374,10 @@ void App::removeTabAt(int index) {
     if (tab.sci) {
         DestroyWindow(tab.sci);
         tab.sci = nullptr;
+    }
+    if (tab.previewControl) {
+        DestroyWindow(tab.previewControl);
+        tab.previewControl = nullptr;
     }
     if (!tab.recovery.empty()) {
         DeleteFileW((DataDirectory() + L"\\recovery\\" + tab.recovery).c_str());
@@ -1398,6 +1467,10 @@ bool App::saveTab(Tab& tab, bool saveAs) {
     tab.untitled = false;
     tab.displayName = FileNameOf(tab.path);
     tab.language = syntax::Detect(tab.path);
+    const bool leavingPreview = tab.preview && tab.language != syntax::Language::Markdown;
+    if (leavingPreview) {
+        tab.preview = false;
+    }
     tab.readOnly = false;
     editor::SetReadOnly(tab.sci, false);
     Sci(&tab, SCI_SETSAVEPOINT);
@@ -1408,6 +1481,9 @@ bool App::saveTab(Tab& tab, bool saveAs) {
     syntax::Apply(tab.sci, tab.language, settings_.syntaxHighlighting, editor::Length(tab.sci));
     AddRecentFile(settings_, tab.path);
     SaveSettings(settings_);
+    if (leavingPreview) {
+        layout();
+    }
     updateTabBar();
     updateStatus();
     updateTitle();
@@ -1815,6 +1891,15 @@ void App::applySettingsToAll() {
                       editor::Length(tab->sci));
         editor::SetReadOnly(tab->sci, tab->readOnly);
         editor::UpdateLineNumberWidth(tab->sci);
+        if (tab->previewControl) {
+            Settings previewSettings = settings_;
+            previewSettings.wrap = true;
+            previewSettings.lineNumbers = false;
+            previewSettings.zoom = tab->zoom;
+            editor::ApplySettings(tab->previewControl, previewSettings);
+            editor::SetLineNumbers(tab->previewControl, false);
+            refreshPreview(*tab);
+        }
     }
     layout();
     updateStatus();
@@ -1855,6 +1940,9 @@ void App::zoomBy(int delta) {
     tab->zoom = std::clamp(tab->zoom + delta, -10, 30);
     if (tab->loaded) {
         editor::SetZoom(tab->sci, tab->zoom);
+        if (tab->previewControl) {
+            editor::SetZoom(tab->previewControl, tab->zoom);
+        }
     }
     settings_.zoom = tab->zoom;
     SaveSettings(settings_);
@@ -1870,6 +1958,9 @@ void App::resetZoom() {
     tab->zoom = 0;
     if (tab->loaded) {
         editor::SetZoom(tab->sci, 0);
+        if (tab->previewControl) {
+            editor::SetZoom(tab->previewControl, 0);
+        }
     }
     settings_.zoom = 0;
     SaveSettings(settings_);
@@ -1908,6 +1999,76 @@ void App::insertTimeDate() {
     const std::string text = WideToUtf8(buffer);
     Sci(tab, SCI_REPLACESEL, TRUE, reinterpret_cast<sptr_t>(text.c_str()));
     editor::Focus(tab->sci);
+}
+
+bool App::ensurePreview(Tab& tab) {
+    if (tab.previewControl) {
+        return true;
+    }
+    HWND preview = editor::Create(hwnd_, instance_);
+    if (!preview) {
+        return false;
+    }
+    Settings local = settings_;
+    local.wrap = true;
+    local.lineNumbers = false;
+    local.zoom = tab.zoom;
+    editor::ApplySettings(preview, local);
+    editor::SetLineNumbers(preview, false);
+    SendMessageW(preview, SCI_SETMARGINWIDTHN, 0, 0);
+    SendMessageW(preview, SCI_SETCARETSTYLE, CARETSTYLE_INVISIBLE, 0);
+    SendMessageW(preview, SCI_SETCARETLINEVISIBLE, FALSE, 0);
+    SendMessageW(preview, SCI_SETHSCROLLBAR, FALSE, 0);
+    SendMessageW(preview, SCI_SETSEL, 0, 0);
+    tab.previewControl = preview;
+    return true;
+}
+
+void App::refreshPreview(Tab& tab) {
+    if (!tab.previewControl || !tab.loaded || !tab.sci) {
+        return;
+    }
+    markdown::RenderToScintilla(tab.previewControl, editor::GetText(tab.sci));
+}
+
+void App::toggleMarkdownPreview() {
+    Tab* tab = activeTab();
+    if (!tab) {
+        MessageBeep(MB_ICONASTERISK);
+        return;
+    }
+    if (tab->language != syntax::Language::Markdown) {
+        setStatusMessage(L"Markdown preview is only available for Markdown files");
+        return;
+    }
+    if (!tab->loaded && (active_ < 0 || !ensureLoaded(active_))) {
+        return;
+    }
+    tab = activeTab();
+    if (!tab) {
+        return;
+    }
+
+    if (!tab->preview) {
+        if (!ensurePreview(*tab)) {
+            ShowError(hwnd_, L"Cannot create the Markdown preview control.");
+            return;
+        }
+        refreshPreview(*tab);
+        tab->preview = true;
+        setStatusMessage(L"Markdown preview");
+        layout();
+        updateStatus();
+        updateTitle();
+        SetFocus(tab->previewControl);
+    } else {
+        tab->preview = false;
+        layout();
+        updateStatus();
+        updateTitle();
+        editor::Focus(tab->sci);
+        setStatusMessage(L"Markdown source");
+    }
 }
 
 void App::makeDefaultEditor() {
@@ -1952,7 +2113,7 @@ void App::handleScintillaNotify(LPARAM lParam) {
         auto* notification = reinterpret_cast<SCNotification*>(lParam);
         const int changed = notification->updated & (SC_UPDATE_SELECTION | SC_UPDATE_V_SCROLL |
                                                       SC_UPDATE_H_SCROLL);
-        if (changed != 0) {
+        if (changed != 0 && !tab->preview) {
             editor::HighlightOccurrences(tab->sci);
         }
         updateStatus();
