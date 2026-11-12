@@ -42,8 +42,8 @@ void ApplyThemeColors(HWND sci) {
     S(sci, SCI_SETCARETLINEVISIBLEALWAYS, TRUE);
     S(sci, SCI_SETSELFORE, TRUE, theme::kText);
     S(sci, SCI_SETSELBACK, TRUE, theme::kSelection);
-    S(sci, SCI_SETADDITIONALSELBACK, TRUE, theme::kSelectionAlt);
-    S(sci, SCI_SETADDITIONALSELFORE, TRUE, theme::kText);
+    S(sci, SCI_SETADDITIONALSELBACK, theme::kSelectionAlt);
+    S(sci, SCI_SETADDITIONALSELFORE, theme::kText);
     S(sci, SCI_SETADDITIONALSELALPHA, 160);
     S(sci, SCI_SETADDITIONALCARETFORE, theme::kText);
     S(sci, SCI_SETADDITIONALCARETSBLINK, FALSE);
