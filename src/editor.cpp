@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Scintilla.h"
@@ -265,34 +266,54 @@ void HighlightOccurrences(HWND sci) {
     const sptr_t length = S(sci, SCI_GETLENGTH);
     S(sci, SCI_SETINDICATORCURRENT, kOccurrenceIndicator);
     S(sci, SCI_INDICATORCLEARRANGE, 0, length);
-    if (S(sci, SCI_GETSELECTIONS) != 1) {
-        return;
-    }
 
-    const sptr_t selStart = S(sci, SCI_GETSELECTIONSTART);
-    const sptr_t selEnd = S(sci, SCI_GETSELECTIONEND);
-    const sptr_t selLength = selEnd - selStart;
-    if (selLength <= 0 || selLength > 200) {
-        return;
-    }
+    struct SelectionRange {
+        sptr_t start;
+        sptr_t end;
+    };
+    const int selectionCount = static_cast<int>(S(sci, SCI_GETSELECTIONS));
+    std::vector<SelectionRange> selections;
+    selections.reserve(static_cast<size_t>(std::max(1, selectionCount)));
+    std::vector<std::string> needles;
+    for (int i = 0; i < selectionCount; ++i) {
+        sptr_t start = S(sci, SCI_GETSELECTIONNSTART, static_cast<uptr_t>(i));
+        sptr_t end = S(sci, SCI_GETSELECTIONNEND, static_cast<uptr_t>(i));
+        if (end < start) {
+            std::swap(start, end);
+        }
+        selections.push_back({start, end});
 
-    std::string needle(static_cast<size_t>(selLength) + 1, '\0');
-    const sptr_t copied =
-        S(sci, SCI_GETSELTEXT, 0, reinterpret_cast<sptr_t>(needle.data()));
-    if (copied <= 0) {
-        return;
-    }
-    needle.resize(static_cast<size_t>(copied));
-    bool hasContent = false;
-    for (const unsigned char ch : needle) {
-        if (ch == '\r' || ch == '\n' || ch == '\0') {
-            return;
+        const sptr_t selLength = end - start;
+        if (selLength <= 0 || selLength > 200 || needles.size() >= 16) {
+            continue;
         }
-        if (ch != ' ' && ch != '\t') {
-            hasContent = true;
+        std::string needle(static_cast<size_t>(selLength) + 1, '\0');
+        Sci_TextRangeFull range{{start, end}, needle.data()};
+        const sptr_t copied =
+            S(sci, SCI_GETTEXTRANGEFULL, 0, reinterpret_cast<sptr_t>(&range));
+        if (copied <= 0) {
+            continue;
+        }
+        needle.resize(static_cast<size_t>(copied));
+        bool hasContent = false;
+        bool invalid = false;
+        for (const unsigned char ch : needle) {
+            if (ch == '\r' || ch == '\n' || ch == '\0') {
+                invalid = true;
+                break;
+            }
+            if (ch != ' ' && ch != '\t') {
+                hasContent = true;
+            }
+        }
+        if (invalid || !hasContent) {
+            continue;
+        }
+        if (std::find(needles.begin(), needles.end(), needle) == needles.end()) {
+            needles.push_back(std::move(needle));
         }
     }
-    if (!hasContent) {
+    if (needles.empty()) {
         return;
     }
 
@@ -313,23 +334,32 @@ void HighlightOccurrences(HWND sci) {
     const sptr_t oldFlags = S(sci, SCI_GETSEARCHFLAGS);
     S(sci, SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE);
 
-    sptr_t search = searchStart;
     int foundCount = 0;
-    while (search < searchEnd && foundCount < kMaxOccurrences) {
-        S(sci, SCI_SETTARGETSTART, static_cast<uptr_t>(search));
-        S(sci, SCI_SETTARGETEND, static_cast<sptr_t>(searchEnd));
-        const sptr_t found = S(sci, SCI_SEARCHINTARGET, static_cast<uptr_t>(needle.size()),
-                               reinterpret_cast<sptr_t>(needle.c_str()));
-        if (found < 0) {
-            break;
+    for (const std::string& needle : needles) {
+        sptr_t search = searchStart;
+        while (search < searchEnd && foundCount < kMaxOccurrences) {
+            S(sci, SCI_SETTARGETSTART, static_cast<uptr_t>(search));
+            S(sci, SCI_SETTARGETEND, static_cast<sptr_t>(searchEnd));
+            const sptr_t found =
+                S(sci, SCI_SEARCHINTARGET, static_cast<uptr_t>(needle.size()),
+                  reinterpret_cast<sptr_t>(needle.c_str()));
+            if (found < 0) {
+                break;
+            }
+            const sptr_t foundEnd = found + static_cast<sptr_t>(needle.size());
+            const bool overlapsSelection =
+                std::any_of(selections.begin(), selections.end(),
+                            [&](const SelectionRange& range) {
+                                return range.end > range.start && found < range.end &&
+                                       foundEnd > range.start;
+                            });
+            if (!overlapsSelection) {
+                S(sci, SCI_INDICATORFILLRANGE, static_cast<uptr_t>(found),
+                  static_cast<sptr_t>(needle.size()));
+                ++foundCount;
+            }
+            search = std::max(foundEnd, found + 1);
         }
-        const sptr_t foundEnd = found + static_cast<sptr_t>(needle.size());
-        if (found >= selEnd || foundEnd <= selStart) {
-            S(sci, SCI_INDICATORFILLRANGE, static_cast<uptr_t>(found),
-              static_cast<sptr_t>(needle.size()));
-            ++foundCount;
-        }
-        search = std::max(foundEnd, found + 1);
     }
 
     S(sci, SCI_SETTARGETSTART, static_cast<uptr_t>(oldTargetStart));

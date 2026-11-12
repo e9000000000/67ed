@@ -1005,6 +1005,22 @@ void TestEditingCommands(TestLog& log) {
                   SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 0) == 0 &&
                   SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 4) == 0,
               "editing.occurrences.highlight");
+    editor::SetText(sci, "foo bar foo foo\n");
+    SendMessageW(sci, SCI_GOTOPOS, 1, 0);
+    SendMessageW(sci, SCI_SETTARGETSTART, 0, 0);
+    SendMessageW(sci, SCI_SETTARGETEND, 16, 0);
+    SendMessageW(sci, SCI_MULTIPLESELECTADDNEXT, 0, 0);
+    SendMessageW(sci, SCI_MULTIPLESELECTADDNEXT, 0, 0);
+    editor::HighlightOccurrences(sci);
+    log.check(SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 12) != 0 &&
+                  SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 0) == 0 &&
+                  SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 8) == 0,
+              "editing.occurrences.multicursor");
+    SendMessageW(sci, SCI_MULTIPLESELECTADDNEXT, 0, 0);
+    editor::HighlightOccurrences(sci);
+    log.check(SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 12) == 0,
+              "editing.occurrences.allselected");
+
     SendMessageW(sci, SCI_GOTOPOS, 1, 0);
     editor::HighlightOccurrences(sci);
     log.check(SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 8) == 0,

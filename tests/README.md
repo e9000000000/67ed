@@ -26,7 +26,7 @@ corrupt-session backup, recent-label formatting, find/line bar state, tab-bar hi
 testing, status-bar drag area, editor setting application, settings
 round-trip/clamping/backup, syntax language detection and style application, and
 crash-log writing, line selection/moves, multi-cursor state, and occurrence
-indicators. Expected final line: `summary passed=240 failed=0`.
+indicators across selections. Expected final line: `summary passed=242 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).

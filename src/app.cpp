@@ -509,6 +509,7 @@ void App::onCommand(UINT id) {
             Sci(tab, SCI_SETTARGETSTART, 0);
             Sci(tab, SCI_SETTARGETEND, static_cast<sptr_t>(editor::Length(tab->sci)));
             Sci(tab, SCI_MULTIPLESELECTADDNEXT);
+            editor::HighlightOccurrences(tab->sci);
             updateStatus();
         }
         break;

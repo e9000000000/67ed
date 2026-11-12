@@ -179,7 +179,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
   settings round-trip/backup, tab-bar hit testing, status-bar drag area, shell
   registration helpers, interface/editor font settings, syntax detection and
   styling, scrollbar synchronization, line selection/moves, multi-cursor state,
-  occurrence indicators, and chunked save. Expect `summary passed=240 failed=0`.
+  occurrence indicators across multiple selections, and chunked save. Expect
+  `summary passed=242 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
