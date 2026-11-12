@@ -69,6 +69,7 @@ struct Builder {
     std::vector<Link> links;
     std::vector<ImageBlock> images;
     std::vector<CodeBlock> codeBlocks;
+    std::vector<CodeSpan> codeSpans;
 
     void Append(std::string_view value, Style style) {
         text.append(value.data(), value.size());
@@ -119,7 +120,11 @@ void AppendInline(Builder& out, std::string_view text, Style base, bool bold, bo
         if (ch == '`') {
             const size_t close = text.find('`', i + 1);
             if (close != std::string_view::npos) {
+                const size_t start = out.text.size();
+                out.Append(' ', Style::Code);
                 out.Append(text.substr(i + 1, close - i - 1), Style::Code);
+                out.Append(' ', Style::Code);
+                out.codeSpans.push_back({start, out.text.size()});
                 i = close + 1;
                 continue;
             }
@@ -356,6 +361,7 @@ Document Render(std::string_view source, const RenderOptions& options) {
 
     bool inCode = false;
     size_t codeStart = 0;
+    bool lastBlank = false;
     for (; index < lines.size(); ++index) {
         const std::string_view rawLine = lines[index];
         const std::string_view trimmed = Trim(rawLine);
@@ -366,7 +372,6 @@ Document Render(std::string_view source, const RenderOptions& options) {
                 out.Append(" ", Style::CodePad);
                 out.Newline(Style::CodePad);
                 out.codeBlocks.push_back({codeStart, out.text.size()});
-                out.Newline();
             } else {
                 out.Append("  ", Style::CodeBlock);
                 out.Append(TrimRight(rawLine), Style::CodeBlock);
@@ -375,7 +380,7 @@ Document Render(std::string_view source, const RenderOptions& options) {
             continue;
         }
         if (IsFence(trimmed)) {
-            out.Newline();
+            lastBlank = false;
             codeStart = out.text.size();
             out.Append(" ", Style::CodePad);
             out.Newline(Style::CodePad);
@@ -383,9 +388,13 @@ Document Render(std::string_view source, const RenderOptions& options) {
             continue;
         }
         if (trimmed.empty()) {
-            out.Newline();
+            if (!lastBlank) {
+                out.Newline(Style::Blank);
+            }
+            lastBlank = true;
             continue;
         }
+        lastBlank = false;
 
         // Setext heading: the next line underlines this one.
         if (index + 1 < lines.size()) {
@@ -505,7 +514,7 @@ Document Render(std::string_view source, const RenderOptions& options) {
     }
 
     return {std::move(out.text), std::move(out.styles), std::move(out.links),
-            std::move(out.images), std::move(out.codeBlocks)};
+            std::move(out.images), std::move(out.codeBlocks), std::move(out.codeSpans)};
 }
 
 namespace {
@@ -534,6 +543,7 @@ struct PreviewImage {
 struct PreviewState {
     std::vector<PreviewImage> images;
     std::vector<CodeBlock> codeBlocks;
+    std::vector<CodeSpan> codeSpans;
 };
 
 std::unordered_map<HWND, PreviewState*> g_previewStates;
@@ -557,9 +567,25 @@ void AddRoundedRect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, flo
     path.CloseFigure();
 }
 
-void DrawCodeBlockDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
-                              const PreviewState& state) {
-    if (state.codeBlocks.empty()) {
+void DrawRoundedPanel(Gdiplus::Graphics& graphics, const Gdiplus::RectF& outer,
+                      const Gdiplus::RectF& inner, float radius,
+                      Gdiplus::SolidBrush& page, Gdiplus::Pen& border) {
+    if (inner.Width <= 0.0f || inner.Height <= 0.0f) {
+        return;
+    }
+    Gdiplus::GraphicsPath rounded;
+    AddRoundedRect(rounded, inner, radius);
+    Gdiplus::GraphicsPath mask;
+    mask.SetFillMode(Gdiplus::FillModeAlternate);
+    mask.AddRectangle(outer);
+    mask.AddPath(&rounded, FALSE);
+    graphics.FillPath(&page, &mask);
+    graphics.DrawPath(&border, &rounded);
+}
+
+void DrawCodeDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
+                         const PreviewState& state) {
+    if (state.codeBlocks.empty() && state.codeSpans.empty()) {
         return;
     }
     RECT client{};
@@ -570,9 +596,11 @@ void DrawCodeBlockDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
     if (right <= left) {
         return;
     }
-    const float radius = static_cast<float>(theme::Scale(6, theme::DpiOf(hwnd)));
+    const int dpi = theme::DpiOf(hwnd);
     Gdiplus::SolidBrush page(GdiColor(theme::kBg));
     Gdiplus::Pen border(GdiColor(theme::kBorder), 1.0f);
+
+    const float blockRadius = static_cast<float>(theme::Scale(6, dpi));
     for (const CodeBlock& block : state.codeBlocks) {
         const int top = static_cast<int>(
             SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(block.start), 0));
@@ -584,14 +612,41 @@ void DrawCodeBlockDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
         const Gdiplus::RectF rect(static_cast<float>(left), static_cast<float>(top),
                                   static_cast<float>(right - left),
                                   static_cast<float>(bottom - top));
-        Gdiplus::GraphicsPath rounded;
-        AddRoundedRect(rounded, rect, radius);
-        Gdiplus::GraphicsPath mask;
-        mask.SetFillMode(Gdiplus::FillModeAlternate);
-        mask.AddRectangle(rect);
-        mask.AddPath(&rounded, FALSE);
-        graphics.FillPath(&page, &mask);
-        graphics.DrawPath(&border, &rounded);
+        DrawRoundedPanel(graphics, rect, rect, blockRadius, page, border);
+    }
+
+    const float spanRadius = static_cast<float>(theme::Scale(3, dpi));
+    const float inset = static_cast<float>(theme::Scale(2, dpi));
+    for (const CodeSpan& span : state.codeSpans) {
+        const int startLine = static_cast<int>(
+            SendMessageW(hwnd, SCI_LINEFROMPOSITION, static_cast<WPARAM>(span.start), 0));
+        const int endLine = static_cast<int>(
+            SendMessageW(hwnd, SCI_LINEFROMPOSITION, static_cast<WPARAM>(span.end), 0));
+        if (startLine != endLine) {
+            continue;
+        }
+        const int top = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(span.start), 0));
+        const int endTop = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(span.end), 0));
+        const int startX = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, static_cast<WPARAM>(span.start), 0));
+        const int endX = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, static_cast<WPARAM>(span.end), 0));
+        if (top != endTop || endX <= startX) {
+            continue;
+        }
+        const int height = static_cast<int>(
+            SendMessageW(hwnd, SCI_TEXTHEIGHT, static_cast<WPARAM>(startLine), 0));
+        if (height <= static_cast<int>(inset * 2.0f) + 2) {
+            continue;
+        }
+        const Gdiplus::RectF outer(static_cast<float>(startX), static_cast<float>(top),
+                                   static_cast<float>(endX - startX),
+                                   static_cast<float>(height));
+        const Gdiplus::RectF inner(outer.X, outer.Y + inset, outer.Width,
+                                   outer.Height - inset * 2.0f);
+        DrawRoundedPanel(graphics, outer, inner, spanRadius, page, border);
     }
 }
 
@@ -601,7 +656,7 @@ void DrawPreviewDecorations(HWND hwnd) {
         return;
     }
     PreviewState& state = *found->second;
-    if (state.images.empty() && state.codeBlocks.empty()) {
+    if (state.images.empty() && state.codeBlocks.empty() && state.codeSpans.empty()) {
         return;
     }
     HDC dc = GetDC(hwnd);
@@ -613,7 +668,7 @@ void DrawPreviewDecorations(HWND hwnd) {
     graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
 
-    DrawCodeBlockDecorations(graphics, hwnd, state);
+    DrawCodeDecorations(graphics, hwnd, state);
 
     for (const PreviewImage& item : state.images) {
         const int y = static_cast<int>(
@@ -649,7 +704,8 @@ LRESULT CALLBACK PreviewSubclassProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 }
 
 void UpdatePreviewData(HWND sci, const std::vector<ImageBlock>& blocks,
-                       const std::vector<CodeBlock>& codeBlocks) {
+                       const std::vector<CodeBlock>& codeBlocks,
+                       const std::vector<CodeSpan>& codeSpans) {
     auto found = g_previewStates.find(sci);
     if (found == g_previewStates.end()) {
         SetWindowSubclass(sci, PreviewSubclassProc, kPreviewSubclass, 0);
@@ -658,6 +714,7 @@ void UpdatePreviewData(HWND sci, const std::vector<ImageBlock>& blocks,
     PreviewState& state = *found->second;
     state.images.clear();
     state.codeBlocks = codeBlocks;
+    state.codeSpans = codeSpans;
     if (!EnsureGdiplus()) {
         return;
     }
@@ -717,6 +774,10 @@ void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* lin
             block.start += prefix;
             block.end += prefix;
         }
+        for (CodeSpan& span : document.codeSpans) {
+            span.start += prefix;
+            span.end += prefix;
+        }
     }
     document.text.push_back('\n');
     document.styles.push_back(Byte(Style::Text));
@@ -752,6 +813,8 @@ void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* lin
     style(Style::Quote, theme::kSyntaxComment, theme::kBg, textSize, false, true);
     style(Style::ListBullet, theme::kSyntaxKeyword, theme::kBg, textSize, true, false);
     style(Style::Rule, theme::kTextFaint, theme::kBg, textSize, false, false);
+    style(Style::Blank, theme::kText, theme::kBg, std::max(2, textSize / 2), false,
+          false);
 
     const auto setFont = [&](Style id, const std::string& font) {
         S(sci, SCI_STYLESETFONT, static_cast<int>(id),
@@ -787,11 +850,13 @@ void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* lin
     S(sci, SCI_SETMARGINSENSITIVEN, 0, FALSE);
     S(sci, SCI_SETMARGINRIGHT, static_cast<uptr_t>(padding));
     S(sci, SCI_SETWRAPMODE, SC_WRAP_WORD);
+    S(sci, SCI_SETEXTRAASCENT, 0);
+    S(sci, SCI_SETEXTRADESCENT, 0);
     S(sci, SCI_SETCARETSTYLE, CARETSTYLE_INVISIBLE);
     S(sci, SCI_SETCARETLINEVISIBLE, FALSE);
     S(sci, SCI_SETHSCROLLBAR, FALSE);
     S(sci, SCI_GOTOPOS, 0);
-    UpdatePreviewData(sci, document.images, document.codeBlocks);
+    UpdatePreviewData(sci, document.images, document.codeBlocks, document.codeSpans);
     const sptr_t lineCount = std::max<sptr_t>(1, S(sci, SCI_GETLINECOUNT));
     S(sci, SCI_SETFIRSTVISIBLELINE,
       static_cast<uptr_t>(std::min<sptr_t>(std::max<sptr_t>(0, top), lineCount - 1)));

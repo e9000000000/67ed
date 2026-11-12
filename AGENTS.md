@@ -7,7 +7,7 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 ## Current state
 
 M0–M3 are complete and M4 is in progress. The app builds as a single x64 executable
-(~2.09 MiB) and currently has: custom dark title/tab/status chrome with a burger
+(~2.10 MiB) and currently has: custom dark title/tab/status chrome with a burger
 menu (tabs live in the caption row), one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line

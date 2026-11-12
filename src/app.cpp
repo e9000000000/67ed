@@ -2002,6 +2002,7 @@ void App::applySettingsToAll() {
             previewSettings.wrap = true;
             previewSettings.lineNumbers = false;
             previewSettings.zoom = tab->zoom;
+            previewSettings.extraLeading = 0;
             editor::ApplySettings(tab->previewControl, previewSettings);
             editor::SetLineNumbers(tab->previewControl, false);
             refreshPreview(*tab);
@@ -2119,6 +2120,7 @@ bool App::ensurePreview(Tab& tab) {
     local.wrap = true;
     local.lineNumbers = false;
     local.zoom = tab.zoom;
+    local.extraLeading = 0;
     editor::ApplySettings(preview, local);
     editor::SetLineNumbers(preview, false);
     SendMessageW(preview, SCI_SETMARGINWIDTHN, 0, 0);
@@ -2138,8 +2140,8 @@ void App::refreshPreview(Tab& tab) {
         tab.path.empty() ? std::wstring() : DirectoryOf(tab.path);
     markdown::RenderOptions options;
     options.baseDirectory = baseDirectory;
-    options.textFont = settings_.uiFontFace;
-    options.textSize = settings_.uiFontSize;
+    options.textFont = settings_.fontFamily;
+    options.textSize = settings_.fontSize;
     options.codeFont = settings_.fontFamily;
     options.codeSize = settings_.fontSize;
     markdown::RenderToScintilla(tab.previewControl, editor::GetText(tab.sci),

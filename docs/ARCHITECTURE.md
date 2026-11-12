@@ -90,15 +90,15 @@ Scintilla supplies most of the editing behaviour directly:
 - `Render` scans blocks (ATX/Setext headings, fenced code, quotes, lists, rules,
   links, images, and paragraphs) and inline markers (`**bold**`, `*italic*`,
   `` `code` ``, links). It returns UTF-8 text plus a style byte per output byte.
-- `RenderToScintilla` applies a preview style set: body text uses the interface
-  font, code uses the editor font, headings are larger bold interface text, and
-  links are underlined. The result loads into a read-only Scintilla control with
-  wrapping, 24-DIP left/right padding, top/bottom spacer lines, and an invisible
-  caret.
-- Fenced code reserves small padding lines plus full-width panel lines. A preview
-  subclass paints rounded corners and a border over Scintilla's block background
-  after each paint, so code panels get padding and a border radius without
-  replacing the text control.
+- `RenderToScintilla` applies a preview style set: body text and code both use the
+  editor font, headings are larger versions of it, and links are underlined. The
+  result loads into a read-only Scintilla control with wrapping, 24-DIP left/right
+  padding, top/bottom spacer lines, no extra line leading, and an invisible caret.
+- Fenced code reserves small padding lines plus full-width panel lines. Inline
+  code is padded with styled spaces and rendered on the same baseline as body
+  text. A preview subclass paints rounded corners and a border over Scintilla's
+  background after each paint, so code panels and inline-code pills get padding
+  and a border radius without replacing the text control.
 - Link ranges travel with the rendered document; the app marks the link style as
   a hotspot and opens `http://`, `https://`, and `mailto:` URLs through
   `ShellExecuteW`. Local file links resolve against the Markdown file's directory

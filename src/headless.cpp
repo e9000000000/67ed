@@ -991,7 +991,8 @@ int x = 1;
     log.check(styleOf("Title") == static_cast<int>(markdown::Style::H1) &&
                   styleOf("bold") == static_cast<int>(markdown::Style::Bold) &&
                   styleOf("italic") == static_cast<int>(markdown::Style::Italic) &&
-                  styleOf("code") == static_cast<int>(markdown::Style::Code),
+                  styleOf("code") == static_cast<int>(markdown::Style::Code) &&
+                  doc.codeSpans.size() == 1,
               "markdown.inline");
     log.check(styleOf("int x = 1;") == static_cast<int>(markdown::Style::CodeBlock) &&
                   styleOf("quote") == static_cast<int>(markdown::Style::Quote) &&

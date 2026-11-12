@@ -26,6 +26,7 @@ enum class Style : unsigned char {
     Quote,
     ListBullet,
     Rule,
+    Blank,
     Count,
 };
 
@@ -47,6 +48,11 @@ struct CodeBlock {
     size_t end = 0;
 };
 
+struct CodeSpan {
+    size_t start = 0;
+    size_t end = 0;
+};
+
 struct RenderOptions {
     int maxImageWidth = 720;
     int lineHeight = 20;
@@ -63,6 +69,7 @@ struct Document {
     std::vector<Link> links;
     std::vector<ImageBlock> images;
     std::vector<CodeBlock> codeBlocks;
+    std::vector<CodeSpan> codeSpans;
 };
 
 // Converts Markdown into plain text plus per-byte style runs.
