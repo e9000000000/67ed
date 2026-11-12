@@ -58,6 +58,8 @@ bool LineBar::create(HWND parent, HINSTANCE instance) {
     }
     SendMessageW(edit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
     SetWindowSubclass(edit_, EditProc, 1, reinterpret_cast<DWORD_PTR>(this));
+    EnableWindowsKeyDrag(edit_);
+    EnableWindowsKeyDrag(hwnd_);
     ShowWindow(hwnd_, SW_HIDE);
     return true;
 }

@@ -179,10 +179,15 @@ void MenuBar::rebuildMenus() {
     edit.items.push_back(MakeItem(kCmdUndo, L"Undo", L"Ctrl+Z", state_.canUndo));
     edit.items.push_back(MakeItem(kCmdRedo, L"Redo", L"Ctrl+Y", state_.canRedo));
     edit.items.push_back(MakeSeparator());
-    edit.items.push_back(MakeItem(kCmdCut, L"Cut", L"Ctrl+X", state_.hasSelection));
-    edit.items.push_back(MakeItem(kCmdCopy, L"Copy", L"Ctrl+C", state_.hasSelection));
+    edit.items.push_back(MakeItem(kCmdCut, L"Cut", L"Ctrl+X", has));
+    edit.items.push_back(MakeItem(kCmdCopy, L"Copy", L"Ctrl+C", has));
     edit.items.push_back(MakeItem(kCmdPaste, L"Paste", L"Ctrl+V", has));
     edit.items.push_back(MakeItem(kCmdSelectAll, L"Select All", L"Ctrl+A", has));
+    edit.items.push_back(MakeItem(kCmdSelectLine, L"Select Line", L"Ctrl+L", has));
+    edit.items.push_back(MakeItem(kCmdSelectNextOccurrence, L"Add Next Occurrence", L"Ctrl+D",
+                                  has));
+    edit.items.push_back(MakeItem(kCmdMoveLineUp, L"Move Line Up", L"Alt+Up", has));
+    edit.items.push_back(MakeItem(kCmdMoveLineDown, L"Move Line Down", L"Alt+Down", has));
     edit.items.push_back(MakeItem(kCmdOvertype, L"Overwrite", L"Insert", has, state_.overtype));
     edit.items.push_back(MakeSeparator());
     edit.items.push_back(MakeItem(kCmdFind, L"Find...", L"Ctrl+F", has));

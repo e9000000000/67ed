@@ -18,6 +18,9 @@ std::string GetText(HWND sci);
 bool SaveDocument(HWND sci, const std::wstring& path, Encoding encoding, bool bom, std::wstring& error);
 void SetWrap(HWND sci, bool wrap);
 void SetLineNumbers(HWND sci, bool show);
+// Selects the current line, extending the previous line selection when called
+// repeatedly (Ctrl+L behaviour).
+void SelectLine(HWND sci);
 // Restores margin/brace styles after a lexer call to SCI_STYLECLEARALL.
 void RefreshChromeStyles(HWND sci);
 // Recomputes the native scrollbar after a hidden control is shown.

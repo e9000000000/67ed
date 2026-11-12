@@ -104,6 +104,7 @@ encoding matrix round-trips byte-for-byte when unedited.
 - High-DPI pass (125/150/200%), dark native-ish dialogs, scrollbar theming.
 - Crash log, per-user default-editor registration, portable mode.
 - Lexilla syntax highlighting for code, markup, and data formats.
+- Line editing shortcuts, multi-cursor, and Win-key window dragging.
 - Bench suite and unit tests wired into the build.
 - Final size/startup budget check.
 
@@ -121,5 +122,5 @@ encoding matrix round-trips byte-for-byte when unedited.
 
 ## Out of scope (v1)
 
-Plugins, multi-cursor, split view, printing, macro recording, remote editing,
-collaboration, macOS/Linux UI, 1 GB+ files.
+Plugins, split view, printing, macro recording, remote editing, collaboration,
+macOS/Linux UI, 1 GB+ files.

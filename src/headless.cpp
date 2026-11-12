@@ -256,6 +256,11 @@ void TestAccelerators(TestLog& log) {
               has(FVIRTKEY, VK_F3, kCmdFindNext) &&
               has(FVIRTKEY | FSHIFT, VK_F3, kCmdFindPrev), "accel.extra");
     log.check(has(FVIRTKEY | FCONTROL | FSHIFT, 'U', kCmdUiFont), "accel.uifont");
+    log.check(has(FVIRTKEY | FCONTROL, 'L', kCmdSelectLine) &&
+                  has(FVIRTKEY | FCONTROL, 'D', kCmdSelectNextOccurrence) &&
+                  has(FVIRTKEY | FALT, VK_UP, kCmdMoveLineUp) &&
+                  has(FVIRTKEY | FALT, VK_DOWN, kCmdMoveLineDown),
+              "accel.editing");
     if (table) {
         DestroyAcceleratorTable(table);
     }
@@ -946,6 +951,56 @@ void TestSyntax(TestLog& log) {
     DestroyWindow(host);
 }
 
+void TestEditingCommands(TestLog& log) {
+    HWND host = CreateHost();
+    log.check(host != nullptr, "editing.host");
+    if (!host) {
+        return;
+    }
+    HWND sci = editor::Create(host, GetModuleHandleW(nullptr));
+    log.check(sci != nullptr, "editing.editor");
+    if (!sci) {
+        DestroyWindow(host);
+        return;
+    }
+    editor::ApplySettings(sci, TestSettings());
+
+    editor::SetText(sci, "one\ntwo\nthree\n");
+    SendMessageW(sci, SCI_GOTOPOS, 1, 0);
+    editor::SelectLine(sci);
+    log.check(SendMessageW(sci, SCI_GETSELECTIONSTART, 0, 0) == 0 &&
+                  SendMessageW(sci, SCI_GETSELECTIONEND, 0, 0) == 4,
+              "editing.selectline.first");
+    editor::SelectLine(sci);
+    editor::SelectLine(sci);
+    log.check(SendMessageW(sci, SCI_GETSELECTIONSTART, 0, 0) == 0 &&
+                  SendMessageW(sci, SCI_GETSELECTIONEND, 0, 0) == 14,
+              "editing.selectline.extend");
+
+    editor::SetText(sci, "one\ntwo\nthree\n");
+    SendMessageW(sci, SCI_GOTOPOS, 1, 0);
+    SendMessageW(sci, SCI_MOVESELECTEDLINESDOWN, 0, 0);
+    log.check(editor::GetText(sci) == "two\none\nthree\n", "editing.move.down");
+    SendMessageW(sci, SCI_MOVESELECTEDLINESUP, 0, 0);
+    log.check(editor::GetText(sci) == "one\ntwo\nthree\n", "editing.move.up");
+
+    log.check(SendMessageW(sci, SCI_GETMULTIPLESELECTION, 0, 0) != 0 &&
+                  SendMessageW(sci, SCI_GETADDITIONALSELECTIONTYPING, 0, 0) != 0,
+              "editing.multicursor.enabled");
+    editor::SetText(sci, "foo foo foo\n");
+    SendMessageW(sci, SCI_GOTOPOS, 1, 0);
+    SendMessageW(sci, SCI_SETTARGETSTART, 0, 0);
+    SendMessageW(sci, SCI_SETTARGETEND, 12, 0);
+    SendMessageW(sci, SCI_MULTIPLESELECTADDNEXT, 0, 0);
+    SendMessageW(sci, SCI_MULTIPLESELECTADDNEXT, 0, 0);
+    SendMessageW(sci, SCI_MULTIPLESELECTADDNEXT, 0, 0);
+    log.check(SendMessageW(sci, SCI_GETSELECTIONS, 0, 0) == 3,
+              "editing.multicursor.count");
+
+    DestroyWindow(sci);
+    DestroyWindow(host);
+}
+
 void TestTabOrder(TestLog& log) {
     std::vector<std::string> order{"a", "b", "c", "d"};
     taborder::Move(order, 0, 2);
@@ -1087,6 +1142,7 @@ int RunSelfTest(const std::wstring& logPath) {
     TestSettings(log, dir);
     TestScintilla(log, dir);
     TestSyntax(log);
+    TestEditingCommands(log);
     TestTabOrder(log);
 
     fs::remove_all(dir, error);

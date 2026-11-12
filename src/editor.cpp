@@ -39,6 +39,12 @@ void ApplyThemeColors(HWND sci) {
     S(sci, SCI_SETCARETLINEVISIBLEALWAYS, TRUE);
     S(sci, SCI_SETSELFORE, TRUE, theme::kText);
     S(sci, SCI_SETSELBACK, TRUE, theme::kSelection);
+    S(sci, SCI_SETADDITIONALSELBACK, TRUE, theme::kSelectionAlt);
+    S(sci, SCI_SETADDITIONALSELFORE, TRUE, theme::kText);
+    S(sci, SCI_SETADDITIONALSELALPHA, 160);
+    S(sci, SCI_SETADDITIONALCARETFORE, theme::kText);
+    S(sci, SCI_SETADDITIONALCARETSBLINK, FALSE);
+    S(sci, SCI_SETADDITIONALCARETSVISIBLE, TRUE);
     S(sci, SCI_SETWHITESPACEFORE, FALSE, 0);
 
     S(sci, SCI_SETMARGINBACKN, 0, theme::kMargin);
@@ -71,12 +77,14 @@ HWND Create(HWND parent, HINSTANCE instance) {
     S(sci, SCI_SETVSCROLLBAR, TRUE);
     S(sci, SCI_SETCARETWIDTH, 2);
     S(sci, SCI_SETPASTECONVERTENDINGS, TRUE);
-    S(sci, SCI_SETMULTIPLESELECTION, FALSE);
-    S(sci, SCI_SETADDITIONALSELECTIONTYPING, FALSE);
+    S(sci, SCI_SETMULTIPLESELECTION, TRUE);
+    S(sci, SCI_SETADDITIONALSELECTIONTYPING, TRUE);
+    S(sci, SCI_SETMULTIPASTE, SC_MULTIPASTE_EACH);
     S(sci, SCI_SETWRAPVISUALFLAGS, SC_WRAPVISUALFLAG_END);
     S(sci, SCI_SETWRAPINDENTMODE, SC_WRAPINDENT_INDENT);
     S(sci, SCI_SETVIRTUALSPACEOPTIONS, 0);
     AllowDarkModeForWindow(sci);
+    EnableWindowsKeyDrag(sci);
     return sci;
 }
 
@@ -215,6 +223,29 @@ void SetLineNumbers(HWND sci, bool show) {
         return;
     }
     UpdateLineNumberWidth(sci);
+}
+
+void SelectLine(HWND sci) {
+    if (!sci) {
+        return;
+    }
+    const sptr_t length = S(sci, SCI_GETLENGTH);
+    const sptr_t caret = S(sci, SCI_GETCURRENTPOS);
+    const sptr_t line = S(sci, SCI_LINEFROMPOSITION, caret);
+    const sptr_t lineCount = S(sci, SCI_GETLINECOUNT);
+    const sptr_t lineStart = S(sci, SCI_POSITIONFROMLINE, line);
+    const sptr_t nextStart =
+        line + 1 < lineCount ? S(sci, SCI_POSITIONFROMLINE, line + 1) : length;
+
+    const sptr_t selStart = S(sci, SCI_GETSELECTIONSTART);
+    const sptr_t selEnd = S(sci, SCI_GETSELECTIONEND);
+    // A previous Ctrl+L leaves the caret at the start of the next line and the
+    // anchor at a line start. Extend that selection instead of restarting.
+    const bool extending =
+        selStart < selEnd && selEnd == lineStart &&
+        S(sci, SCI_POSITIONFROMLINE, S(sci, SCI_LINEFROMPOSITION, selStart)) == selStart;
+    const sptr_t start = extending ? selStart : lineStart;
+    S(sci, SCI_SETSEL, static_cast<uptr_t>(start), static_cast<sptr_t>(nextStart));
 }
 
 void SetEol(HWND sci, EolMode eol) {

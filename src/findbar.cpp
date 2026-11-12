@@ -91,6 +91,7 @@ bool FindBar::create(HWND parent, HINSTANCE instance) {
     }
     SendMessageW(edit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
     SetWindowSubclass(edit_, EditProc, 1, reinterpret_cast<DWORD_PTR>(this));
+    EnableWindowsKeyDrag(edit_);
 
     replaceEdit_ = CreateWindowExW(0, L"EDIT", L"",
                                    WS_CHILD | ES_AUTOHSCROLL | ES_LEFT,
@@ -100,6 +101,8 @@ bool FindBar::create(HWND parent, HINSTANCE instance) {
     }
     SendMessageW(replaceEdit_, WM_SETFONT, reinterpret_cast<WPARAM>(font_), TRUE);
     SetWindowSubclass(replaceEdit_, EditProc, 2, reinterpret_cast<DWORD_PTR>(this));
+    EnableWindowsKeyDrag(replaceEdit_);
+    EnableWindowsKeyDrag(hwnd_);
 
     ShowWindow(hwnd_, SW_HIDE);
     return true;

@@ -19,6 +19,7 @@ constexpr COLORREF kTextDim = RGB(146, 146, 146);
 constexpr COLORREF kTextFaint = RGB(98, 98, 98);
 constexpr COLORREF kAccent = RGB(43, 107, 154);
 constexpr COLORREF kSelection = RGB(29, 58, 85);
+constexpr COLORREF kSelectionAlt = RGB(42, 82, 118);
 constexpr COLORREF kCaretLine = RGB(15, 15, 15);
 constexpr COLORREF kMargin = RGB(11, 11, 11);
 constexpr COLORREF kMarginText = RGB(112, 112, 112);

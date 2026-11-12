@@ -25,7 +25,8 @@ arithmetic, read-only rejection, Unicode surrogate pairs, empty files,
 corrupt-session backup, recent-label formatting, find/line bar state, tab-bar hit
 testing, status-bar drag area, editor setting application, settings
 round-trip/clamping/backup, syntax language detection and style application, and
-crash-log writing. Expected final line: `summary passed=229 failed=0`.
+crash-log writing, line selection/moves, and multi-cursor state. Expected final
+line: `summary passed=238 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).
@@ -104,6 +105,11 @@ Syntax highlighting: open `.cpp`, `.py`, `.js`, `.ts`, `.rs`, `.go`, `.html`,
 `Makefile` and check the status bar language name plus coloured text. View →
 Syntax Highlighting toggles it; the setting persists. Files over 16 MB remain
 plain text.
+
+Editing: Ctrl+X/Ctrl+C with nothing selected use the current line. Ctrl+L selects
+the current line and repeated presses extend it. Alt+Up/Down move the current line
+or selected lines. Ctrl+D selects the word at the caret and then adds following
+occurrences as multiple cursors. Hold Win and drag anywhere to move the window.
 
 Default editor: burger File → Set as Default Text Editor registers 67ed per user
 and opens Windows Default Apps. With `UserChoice` protected by Windows, confirm

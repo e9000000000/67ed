@@ -1,11 +1,37 @@
 #include "util.h"
 
+#include <commctrl.h>
 #include <dwmapi.h>
 #include <shlobj.h>
 #include <uxtheme.h>
 
 #include <algorithm>
 #include <cctype>
+
+namespace {
+
+constexpr UINT_PTR kWindowsKeyDragSubclass = 0x67ED;
+
+LRESULT CALLBACK WindowsKeyDragProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
+                                    UINT_PTR, DWORD_PTR) {
+    if (message == WM_NCHITTEST && IsWindowsKeyDown()) {
+        return HTTRANSPARENT;
+    }
+    return DefSubclassProc(hwnd, message, wParam, lParam);
+}
+
+}  // namespace
+
+bool IsWindowsKeyDown() {
+    return (GetAsyncKeyState(VK_LWIN) & 0x8000) != 0 ||
+           (GetAsyncKeyState(VK_RWIN) & 0x8000) != 0;
+}
+
+void EnableWindowsKeyDrag(HWND hwnd) {
+    if (hwnd) {
+        SetWindowSubclass(hwnd, WindowsKeyDragProc, kWindowsKeyDragSubclass, 0);
+    }
+}
 
 std::wstring Utf8ToWide(std::string_view text) {
     if (text.empty()) {

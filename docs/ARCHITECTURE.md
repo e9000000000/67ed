@@ -58,6 +58,24 @@ built statically, so the app keeps one EXE and no runtime DLLs.
   built by `build.bat` into `build\lexilla.lib`. To add a lexer, see
   `third_party/lexilla/VENDORED.md`.
 
+## Editing commands
+
+Scintilla supplies most of the editing behaviour directly:
+
+- Ctrl+X / Ctrl+C call `SCI_CUTALLOWLINE` / `SCI_COPYALLOWLINE`, which cut or copy
+  the current line when every selection is empty and otherwise behave like normal
+  cut/copy. The Windows clipboard marker keeps paste line-aware.
+- Ctrl+L uses `editor::SelectLine`. A fresh press selects the current line (with
+  its ending); repeat presses extend the same selection through following lines.
+- Alt+Up / Alt+Down call `SCI_MOVESELECTEDLINESUP` / `SCI_MOVESELECTEDLINESDOWN`.
+- Ctrl+D sets the search target to the whole document and calls
+  `SCI_MULTIPLESELECTADDNEXT`. Multiple selection and additional-selection typing
+  are enabled on every editor control, with separate selection/caret colours and
+  `SC_MULTIPASTE_EACH` for pasting into each cursor.
+- While either Win key is held, all custom child controls and Scintilla return
+  `HTTRANSPARENT` from `WM_NCHITTEST`. The main window then returns `HTCAPTION` for
+  its client area, so a drag from anywhere moves the window.
+
 ## UI layout
 
 The main window uses a custom title bar. The native caption is removed with
@@ -232,7 +250,7 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 229 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 238 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit

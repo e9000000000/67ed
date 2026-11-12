@@ -29,6 +29,11 @@ std::wstring Trim(const std::wstring& text);
 int ScaleForDpi(int value, UINT dpi);
 UINT DpiOfWindow(HWND hwnd);
 
+bool IsWindowsKeyDown();
+// Lets a child window pass hit-testing to the main window while Win is held,
+// so the whole window can be dragged from anywhere.
+void EnableWindowsKeyDrag(HWND hwnd);
+
 void ShowError(HWND owner, const std::wstring& message);
 
 void EnableDarkModeForApp();

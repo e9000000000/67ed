@@ -46,9 +46,14 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
   tab width, indent-with-spaces, line spacing
 - Syntax highlighting detected from the filename, with a View toggle; large files
   stay plain text to protect scrolling and opening speed
+- Line editing: Ctrl+X / Ctrl+C on an empty selection use the current line;
+  Ctrl+L selects and extends line selections; Alt+Up/Down moves lines
+- Multi-cursor: Ctrl+D selects the word and adds the next occurrence, with
+  additional typing, pasting, and selections
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
 - Go to line: Ctrl+G
+- Hold Win and drag anywhere to move the window
 - File dialogs: best-effort dark theming applied to the common dialog and controls
 - Tabs: drag to reorder, middle-click to close, right-click for Close / Close
   Others / Close All / Copy Path / Reload; recent-files section
@@ -63,7 +68,7 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
-- Headless `--selftest` (229 checks) and `--bench` modes; no windows are shown
+- Headless `--selftest` (238 checks) and `--bench` modes; no windows are shown
 - 100 MB class files: no-wrap large-file mode, measured 249 ms open / 205 ms save,
   218 MB RSS after save (`docs/PERF.md`)
 

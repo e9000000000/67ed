@@ -319,10 +319,14 @@ void App::showBurgerMenu(int section) {
         add(kCmdUndo, L"Undo", L"Ctrl+Z", state.canUndo);
         add(kCmdRedo, L"Redo", L"Ctrl+Y", state.canRedo);
         separator();
-        add(kCmdCut, L"Cut", L"Ctrl+X", state.hasSelection);
-        add(kCmdCopy, L"Copy", L"Ctrl+C", state.hasSelection);
+        add(kCmdCut, L"Cut", L"Ctrl+X", has);
+        add(kCmdCopy, L"Copy", L"Ctrl+C", has);
         add(kCmdPaste, L"Paste", L"Ctrl+V", has);
         add(kCmdSelectAll, L"Select All", L"Ctrl+A", has);
+        add(kCmdSelectLine, L"Select Line", L"Ctrl+L", has);
+        add(kCmdSelectNextOccurrence, L"Add Next Occurrence", L"Ctrl+D", has);
+        add(kCmdMoveLineUp, L"Move Line Up", L"Alt+Up", has);
+        add(kCmdMoveLineDown, L"Move Line Down", L"Alt+Down", has);
         add(kCmdOvertype, L"Overwrite", L"Insert", has, state.overtype);
         separator();
         add(kCmdFind, L"Find...", L"Ctrl+F", has);
@@ -478,11 +482,13 @@ void App::onCommand(UINT id) {
         updateStatus();
         break;
     case kCmdCut:
-        Sci(tab, SCI_CUT);
+        // With an empty selection this cuts the whole current line.
+        Sci(tab, SCI_CUTALLOWLINE);
         updateStatus();
         break;
     case kCmdCopy:
-        Sci(tab, SCI_COPY);
+        // With an empty selection this copies the whole current line.
+        Sci(tab, SCI_COPYALLOWLINE);
         break;
     case kCmdPaste:
         Sci(tab, SCI_PASTE);
@@ -491,6 +497,32 @@ void App::onCommand(UINT id) {
     case kCmdSelectAll:
         Sci(tab, SCI_SELECTALL);
         updateStatus();
+        break;
+    case kCmdSelectLine:
+        if (tab && tab->loaded) {
+            editor::SelectLine(tab->sci);
+            updateStatus();
+        }
+        break;
+    case kCmdSelectNextOccurrence:
+        if (tab && tab->loaded) {
+            Sci(tab, SCI_SETTARGETSTART, 0);
+            Sci(tab, SCI_SETTARGETEND, static_cast<sptr_t>(editor::Length(tab->sci)));
+            Sci(tab, SCI_MULTIPLESELECTADDNEXT);
+            updateStatus();
+        }
+        break;
+    case kCmdMoveLineUp:
+        if (tab && tab->loaded) {
+            Sci(tab, SCI_MOVESELECTEDLINESUP);
+            updateStatus();
+        }
+        break;
+    case kCmdMoveLineDown:
+        if (tab && tab->loaded) {
+            Sci(tab, SCI_MOVESELECTEDLINESDOWN);
+            updateStatus();
+        }
         break;
     case kCmdOvertype:
         if (tab && tab->loaded) {
@@ -2038,6 +2070,9 @@ LRESULT App::handleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
         ScreenToClient(hwnd_, &client);
         RECT area{};
         GetClientRect(hwnd_, &area);
+        if (IsWindowsKeyDown() && PtInRect(&area, client)) {
+            return HTCAPTION;
+        }
         const int titleBottom = tabBar_.preferredHeight(hwnd_);
         if (client.x >= 0 && client.y >= 0 && client.y < titleBottom) {
             return HTCAPTION;

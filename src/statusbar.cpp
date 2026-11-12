@@ -36,6 +36,7 @@ bool StatusBar::create(HWND parent, HINSTANCE instance) {
     SetWindowLongPtrW(hwnd_, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     dpi_ = DpiOfWindow(parent);
     ensureFont();
+    EnableWindowsKeyDrag(hwnd_);
     return true;
 }
 
