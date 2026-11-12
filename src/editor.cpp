@@ -247,6 +247,36 @@ void UpdateLineNumberWidth(HWND sci) {
     S(sci, SCI_SETMARGINWIDTHN, 0, digitWidth * digits + padding);
 }
 
+void RefreshChromeStyles(HWND sci) {
+    if (!sci) {
+        return;
+    }
+    // SCI_STYLECLEARALL copies STYLE_DEFAULT over STYLE_LINENUMBER and the
+    // decoration styles, so put the dark chrome styles back after a lexer
+    // switch. Keep the line-number font one point smaller than editor text.
+    char face[LF_FACESIZE]{};
+    const sptr_t faceLength =
+        S(sci, SCI_STYLEGETFONT, STYLE_DEFAULT, reinterpret_cast<sptr_t>(face));
+    const int defaultSize = static_cast<int>(S(sci, SCI_STYLEGETSIZE, STYLE_DEFAULT));
+    if (faceLength > 0) {
+        S(sci, SCI_STYLESETFONT, STYLE_LINENUMBER, reinterpret_cast<sptr_t>(face));
+    }
+    S(sci, SCI_STYLESETSIZE, STYLE_LINENUMBER, std::max(6, defaultSize - 1));
+
+    S(sci, SCI_STYLESETFORE, STYLE_LINENUMBER, theme::kMarginText);
+    S(sci, SCI_STYLESETBACK, STYLE_LINENUMBER, theme::kMargin);
+    S(sci, SCI_STYLESETFORE, STYLE_INDENTGUIDE, theme::kTextFaint);
+    S(sci, SCI_STYLESETBACK, STYLE_INDENTGUIDE, theme::kBg);
+    S(sci, SCI_STYLESETFORE, STYLE_BRACELIGHT, theme::kAccent);
+    S(sci, SCI_STYLESETBACK, STYLE_BRACELIGHT, theme::kSelection);
+    S(sci, SCI_STYLESETFORE, STYLE_BRACEBAD, theme::kDanger);
+    S(sci, SCI_STYLESETBACK, STYLE_BRACEBAD, theme::kBg);
+
+    if (S(sci, SCI_GETMARGINWIDTHN, 0) > 0) {
+        UpdateLineNumberWidth(sci);
+    }
+}
+
 void Focus(HWND sci) {
     if (sci) {
         SetFocus(sci);

@@ -8,6 +8,7 @@
 #include "LexerModule.h"
 #include "SciLexer.h"
 #include "Scintilla.h"
+#include "editor.h"
 #include "theme.h"
 #include "util.h"
 
@@ -1448,6 +1449,9 @@ void Apply(HWND sci, Language language, bool enabled, unsigned long long bytes) 
     if (!enabled || bytes > kMaxHighlightBytes) {
         language = Language::Plain;
     }
+    const sptr_t firstVisible = S(sci, SCI_GETFIRSTVISIBLELINE);
+    const sptr_t xOffset = S(sci, SCI_GETXOFFSET);
+
     const Lexilla::LexerModule* module = ModuleFor(language);
     Scintilla::ILexer5* lexer = module ? module->Create() : nullptr;
     S(sci, SCI_SETILEXER, 0, reinterpret_cast<sptr_t>(lexer));
@@ -1459,11 +1463,15 @@ void Apply(HWND sci, Language language, bool enabled, unsigned long long bytes) 
             S(sci, SCI_STARTSTYLING, 0);
             S(sci, SCI_SETSTYLING, static_cast<uptr_t>(length), 0);
         }
+        editor::RefreshChromeStyles(sci);
         return;
     }
     SetKeywords(sci, language);
     ApplyStyleMap(sci, language);
+    editor::RefreshChromeStyles(sci);
     S(sci, SCI_COLOURISE, 0, -1);
+    S(sci, SCI_SETFIRSTVISIBLELINE, static_cast<uptr_t>(firstVisible));
+    S(sci, SCI_SETXOFFSET, static_cast<uptr_t>(xOffset));
 }
 
 }  // namespace syntax

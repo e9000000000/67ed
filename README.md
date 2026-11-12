@@ -63,7 +63,7 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
-- Headless `--selftest` (226 checks) and `--bench` modes; no windows are shown
+- Headless `--selftest` (228 checks) and `--bench` modes; no windows are shown
 - 100 MB class files: no-wrap large-file mode, measured 249 ms open / 205 ms save,
   218 MB RSS after save (`docs/PERF.md`)
 

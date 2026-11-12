@@ -856,6 +856,21 @@ void TestSyntax(TestLog& log) {
     log.check(SendMessageW(sci, SCI_GETSTYLEAT, 0, 0) == SCE_C_WORD, "syntax.cpp.keyword");
     log.check(SendMessageW(sci, SCI_GETSTYLEAT, 19, 0) == SCE_C_COMMENTLINE,
               "syntax.cpp.comment");
+    log.check(SendMessageW(sci, SCI_STYLEGETFORE, STYLE_LINENUMBER, 0) == theme::kMarginText,
+              "syntax.margin.color");
+
+    SetWindowPos(sci, nullptr, 0, 0, 800, 600, SWP_NOZORDER | SWP_NOACTIVATE);
+    std::string manyLines;
+    for (int i = 0; i < 1000; ++i) {
+        manyLines += "int value = 42; // line\n";
+    }
+    editor::SetText(sci, manyLines);
+    SendMessageW(sci, SCI_SETFIRSTVISIBLELINE, 500, 0);
+    syntax::Apply(sci, Language::Cpp, true, 100);
+    log.check(SendMessageW(sci, SCI_GETFIRSTVISIBLELINE, 0, 0) == 500,
+              "syntax.scroll.preserved");
+    editor::SetText(sci, "int main() { // comment\n}\n");
+    syntax::Apply(sci, Language::Cpp, true, 100);
 
     editor::SetText(sci, "# Heading\n");
     syntax::Apply(sci, Language::Markdown, true, 100);

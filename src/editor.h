@@ -18,6 +18,8 @@ std::string GetText(HWND sci);
 bool SaveDocument(HWND sci, const std::wstring& path, Encoding encoding, bool bom, std::wstring& error);
 void SetWrap(HWND sci, bool wrap);
 void SetLineNumbers(HWND sci, bool show);
+// Restores margin/brace styles after a lexer call to SCI_STYLECLEARALL.
+void RefreshChromeStyles(HWND sci);
 void SetEol(HWND sci, EolMode eol);
 void SetReadOnly(HWND sci, bool readOnly);
 void SetZoom(HWND sci, int zoom);
