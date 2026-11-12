@@ -1063,6 +1063,47 @@ int x = 1;
         markdown::RenderToScintilla(sci, "![x](pixel.png)\n", nullptr, previewOptions);
         log.check(SendMessageW(sci, SCI_GETLINECOUNT, 0, 0) >= 2,
                   "markdown.image.preview");
+
+        markdown::RenderOptions inlineOptions;
+        inlineOptions.textFont = L"Cascadia Mono";
+        inlineOptions.textSize = 11;
+        inlineOptions.codeFont = L"Cascadia Mono";
+        inlineOptions.codeSize = 11;
+        markdown::RenderToScintilla(sci, "x `main` y\n", nullptr, inlineOptions);
+        const std::string inlineText = editor::GetText(sci);
+        const size_t codeAt = inlineText.find("main");
+        bool inlineCentered = false;
+        if (codeAt != std::string::npos && codeAt > 0) {
+            const sptr_t spanStart = static_cast<sptr_t>(codeAt - 1);
+            const int x = static_cast<int>(
+                SendMessageW(sci, SCI_POINTXFROMPOSITION, 0,
+                             static_cast<LPARAM>(spanStart)));
+            const int y = static_cast<int>(
+                SendMessageW(sci, SCI_POINTYFROMPOSITION, 0,
+                             static_cast<LPARAM>(spanStart)));
+            const int line = static_cast<int>(SendMessageW(
+                sci, SCI_LINEFROMPOSITION, static_cast<WPARAM>(spanStart), 0));
+            const int lineHeight =
+                static_cast<int>(SendMessageW(sci, SCI_TEXTHEIGHT, static_cast<WPARAM>(line), 0));
+            HDC screen = GetDC(sci);
+            HDC memory = CreateCompatibleDC(screen);
+            HBITMAP bitmap = CreateCompatibleBitmap(screen, 700, 500);
+            HGDIOBJ oldBitmap = SelectObject(memory, bitmap);
+            RECT area{0, 0, 700, 500};
+            HBRUSH background = CreateSolidBrush(theme::kBg);
+            FillRect(memory, &area, background);
+            DeleteObject(background);
+            SendMessageW(sci, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(memory), PRF_CLIENT);
+            const COLORREF topPixel = GetPixel(memory, x + 2, y + 1);
+            const COLORREF midPixel =
+                GetPixel(memory, x + 2, y + lineHeight / 2);
+            inlineCentered = topPixel == theme::kBg && midPixel == theme::kPanelAlt;
+            SelectObject(memory, oldBitmap);
+            DeleteObject(bitmap);
+            DeleteDC(memory);
+            ReleaseDC(sci, screen);
+        }
+        log.check(inlineCentered, "markdown.inline.center");
         DestroyWindow(sci);
     }
     DestroyWindow(host);

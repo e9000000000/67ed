@@ -27,7 +27,7 @@ testing, status-bar drag area, editor setting application, settings
 round-trip/clamping/backup, syntax language detection and style application, and
 crash-log writing, line selection/moves, multi-cursor state, occurrence
 indicators across selections, and Markdown rendering (including local image
-blocks). Expected final line: `summary passed=254 failed=0`.
+blocks). Expected final line: `summary passed=255 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).

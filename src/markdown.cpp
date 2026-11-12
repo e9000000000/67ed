@@ -122,9 +122,11 @@ void AppendInline(Builder& out, std::string_view text, Style base, bool bold, bo
             if (close != std::string_view::npos) {
                 const size_t start = out.text.size();
                 out.Append(' ', Style::Code);
-                out.Append(text.substr(i + 1, close - i - 1), Style::Code);
+                const std::string_view code = text.substr(i + 1, close - i - 1);
+                out.Append(code, Style::Code);
                 out.Append(' ', Style::Code);
-                out.codeSpans.push_back({start, out.text.size()});
+                out.codeSpans.push_back(
+                    {start, out.text.size(), std::string(code)});
                 i = close + 1;
                 continue;
             }
@@ -583,7 +585,7 @@ void DrawRoundedPanel(Gdiplus::Graphics& graphics, const Gdiplus::RectF& outer,
     graphics.DrawPath(&border, &rounded);
 }
 
-void DrawCodeDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
+void DrawCodeDecorations(Gdiplus::Graphics& graphics, HDC dc, HWND hwnd,
                          const PreviewState& state) {
     if (state.codeBlocks.empty() && state.codeSpans.empty()) {
         return;
@@ -600,12 +602,29 @@ void DrawCodeDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
     Gdiplus::SolidBrush page(GdiColor(theme::kBg));
     Gdiplus::Pen border(GdiColor(theme::kBorder), 1.0f);
 
+    char fontName[LF_FACESIZE]{};
+    SendMessageW(hwnd, SCI_STYLEGETFONT, static_cast<WPARAM>(Style::Code),
+                 reinterpret_cast<LPARAM>(fontName));
+    const int fontSize =
+        static_cast<int>(SendMessageW(hwnd, SCI_STYLEGETSIZE, static_cast<WPARAM>(Style::Code), 0));
+    LOGFONTW logFont{};
+    logFont.lfHeight = -MulDiv(fontSize, dpi, 72);
+    logFont.lfWeight = FW_NORMAL;
+    logFont.lfQuality = CLEARTYPE_QUALITY;
+    MultiByteToWideChar(CP_UTF8, 0, fontName, -1, logFont.lfFaceName, LF_FACESIZE);
+    HFONT font = CreateFontIndirectW(&logFont);
+    HGDIOBJ previousFont = SelectObject(dc, font);
+    TEXTMETRICW metrics{};
+    GetTextMetricsW(dc, &metrics);
+
     const float blockRadius = static_cast<float>(theme::Scale(6, dpi));
     for (const CodeBlock& block : state.codeBlocks) {
         const int top = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(block.start), 0));
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, 0,
+                         static_cast<LPARAM>(block.start)));
         const int bottom = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(block.end), 0));
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, 0,
+                         static_cast<LPARAM>(block.end)));
         if (bottom <= top || bottom < 0 || top > client.bottom) {
             continue;
         }
@@ -615,8 +634,8 @@ void DrawCodeDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
         DrawRoundedPanel(graphics, rect, rect, blockRadius, page, border);
     }
 
-    const float spanRadius = static_cast<float>(theme::Scale(3, dpi));
-    const float inset = static_cast<float>(theme::Scale(2, dpi));
+    const float spanRadius = static_cast<float>(theme::Scale(4, dpi));
+    const int padding = theme::Scale(2, dpi);
     for (const CodeSpan& span : state.codeSpans) {
         const int startLine = static_cast<int>(
             SendMessageW(hwnd, SCI_LINEFROMPOSITION, static_cast<WPARAM>(span.start), 0));
@@ -626,41 +645,89 @@ void DrawCodeDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
             continue;
         }
         const int top = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(span.start), 0));
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, 0,
+                         static_cast<LPARAM>(span.start)));
         const int endTop = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(span.end), 0));
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, 0,
+                         static_cast<LPARAM>(span.end)));
         const int startX = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, static_cast<WPARAM>(span.start), 0));
+            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, 0,
+                         static_cast<LPARAM>(span.start)));
         const int endX = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, static_cast<WPARAM>(span.end), 0));
+            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, 0,
+                         static_cast<LPARAM>(span.end)));
         if (top != endTop || endX <= startX) {
             continue;
         }
-        const int height = static_cast<int>(
+        const int lineHeight = static_cast<int>(
             SendMessageW(hwnd, SCI_TEXTHEIGHT, static_cast<WPARAM>(startLine), 0));
-        if (height <= static_cast<int>(inset * 2.0f) + 2) {
+        if (lineHeight <= 0) {
             continue;
         }
+
+        // Measure the actual ink of this span so the pill hugs the visible text
+        // instead of the font's full ascent/descent cell.
+        int inkTop = metrics.tmAscent - metrics.tmInternalLeading;
+        int inkBottom = metrics.tmDescent;
+        if (!span.text.empty()) {
+            const std::wstring code = Utf8ToWide(span.text);
+            int measuredTop = 0;
+            int measuredBottom = 0;
+            for (const wchar_t ch : code) {
+                if (ch == L' ' || ch == L'\t') {
+                    continue;
+                }
+                GLYPHMETRICS glyph{};
+                MAT2 matrix{};
+                matrix.eM11.value = 1;
+                matrix.eM22.value = 1;
+                if (GetGlyphOutlineW(dc, ch, GGO_METRICS, &glyph, 0, nullptr, &matrix) ==
+                    GDI_ERROR) {
+                    continue;
+                }
+                if (glyph.gmBlackBoxY > 0) {
+                    measuredTop = std::max(measuredTop,
+                                           static_cast<int>(glyph.gmptGlyphOrigin.y));
+                    measuredBottom = std::max(
+                        measuredBottom,
+                        static_cast<int>(glyph.gmBlackBoxY) -
+                            static_cast<int>(glyph.gmptGlyphOrigin.y));
+                }
+            }
+            if (measuredTop > 0 || measuredBottom > 0) {
+                inkTop = measuredTop;
+                inkBottom = measuredBottom;
+            }
+        }
+
+        const int baseline = top + metrics.tmAscent;
+        int pillTop = baseline - inkTop - padding;
+        int pillBottom = baseline + inkBottom + padding;
+        pillTop = std::max(pillTop, top);
+        pillBottom = std::min(pillBottom, top + lineHeight);
+        if (pillBottom <= pillTop + 1) {
+            continue;
+        }
+
         const Gdiplus::RectF outer(static_cast<float>(startX), static_cast<float>(top),
                                    static_cast<float>(endX - startX),
-                                   static_cast<float>(height));
-        const Gdiplus::RectF inner(outer.X, outer.Y + inset, outer.Width,
-                                   outer.Height - inset * 2.0f);
+                                   static_cast<float>(lineHeight));
+        const Gdiplus::RectF inner(outer.X, static_cast<float>(pillTop), outer.Width,
+                                   static_cast<float>(pillBottom - pillTop));
         DrawRoundedPanel(graphics, outer, inner, spanRadius, page, border);
     }
+
+    SelectObject(dc, previousFont);
+    DeleteObject(font);
 }
 
-void DrawPreviewDecorations(HWND hwnd) {
+void DrawPreviewDecorationsToDC(HWND hwnd, HDC dc) {
     const auto found = g_previewStates.find(hwnd);
-    if (found == g_previewStates.end()) {
+    if (found == g_previewStates.end() || !dc) {
         return;
     }
     PreviewState& state = *found->second;
     if (state.images.empty() && state.codeBlocks.empty() && state.codeSpans.empty()) {
-        return;
-    }
-    HDC dc = GetDC(hwnd);
-    if (!dc) {
         return;
     }
     Gdiplus::Graphics graphics(dc);
@@ -668,17 +735,27 @@ void DrawPreviewDecorations(HWND hwnd) {
     graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
 
-    DrawCodeDecorations(graphics, hwnd, state);
+    DrawCodeDecorations(graphics, dc, hwnd, state);
 
     for (const PreviewImage& item : state.images) {
         const int y = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(item.position), 0));
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, 0,
+                         static_cast<LPARAM>(item.position)));
         const int x = static_cast<int>(
-            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, static_cast<WPARAM>(item.position), 0));
+            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, 0,
+                         static_cast<LPARAM>(item.position)));
         if (item.image) {
             graphics.DrawImage(item.image.get(), x, y, item.width, item.height);
         }
     }
+}
+
+void DrawPreviewDecorations(HWND hwnd) {
+    HDC dc = GetDC(hwnd);
+    if (!dc) {
+        return;
+    }
+    DrawPreviewDecorationsToDC(hwnd, dc);
     ReleaseDC(hwnd, dc);
 }
 
@@ -694,6 +771,8 @@ LRESULT CALLBACK PreviewSubclassProc(HWND hwnd, UINT message, WPARAM wParam, LPA
     const LRESULT result = DefSubclassProc(hwnd, message, wParam, lParam);
     if (message == WM_PAINT) {
         DrawPreviewDecorations(hwnd);
+    } else if (message == WM_PRINTCLIENT) {
+        DrawPreviewDecorationsToDC(hwnd, reinterpret_cast<HDC>(wParam));
     } else if (message == WM_VSCROLL || message == WM_HSCROLL ||
                message == WM_MOUSEWHEEL || message == WM_KEYDOWN) {
         InvalidateRect(hwnd, nullptr, FALSE);
@@ -796,12 +875,12 @@ void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* lin
         SetStyle(sci, static_cast<int>(id), fore, back, size, bold, italic, underline);
     };
     style(Style::Text, theme::kText, theme::kBg, textSize, false, false);
-    style(Style::H1, theme::kSyntaxHeader, theme::kBg, textSize + 10, true, false);
-    style(Style::H2, theme::kSyntaxHeader, theme::kBg, textSize + 7, true, false);
-    style(Style::H3, theme::kSyntaxHeader, theme::kBg, textSize + 5, true, false);
-    style(Style::H4, theme::kText, theme::kBg, textSize + 3, true, false);
-    style(Style::H5, theme::kText, theme::kBg, textSize + 2, true, false);
-    style(Style::H6, theme::kText, theme::kBg, textSize + 1, true, false);
+    style(Style::H1, theme::kSyntaxHeader, theme::kBg, textSize, true, false);
+    style(Style::H2, theme::kSyntaxHeader, theme::kBg, textSize, true, false);
+    style(Style::H3, theme::kSyntaxHeader, theme::kBg, textSize, true, false);
+    style(Style::H4, theme::kText, theme::kBg, textSize, true, false);
+    style(Style::H5, theme::kText, theme::kBg, textSize, true, false);
+    style(Style::H6, theme::kText, theme::kBg, textSize, true, false);
     style(Style::Bold, theme::kText, theme::kBg, textSize, true, false);
     style(Style::Italic, theme::kText, theme::kBg, textSize, false, true);
     style(Style::BoldItalic, theme::kText, theme::kBg, textSize, true, true);
