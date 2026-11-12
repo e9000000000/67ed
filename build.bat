@@ -58,6 +58,25 @@ if not exist build\scintilla.lib (
     )
 )
 
+if not exist build\lexilla.lib (
+    echo Building Lexilla...
+    if not exist build\lexilla-obj mkdir build\lexilla-obj
+    cl /nologo /c /std:c++17 /EHsc /W3 /MP /FS /MT /O2 /GL /utf-8 /DNDEBUG ^
+       /D_CRT_SECURE_NO_WARNINGS /DNOMINMAX /DWIN32_LEAN_AND_MEAN ^
+       /Ithird_party\scintilla\include /Ithird_party\lexilla\include /Ithird_party\lexilla\lexlib ^
+       /Fdbuild\lexilla-obj\lexilla.pdb /Fobuild\lexilla-obj\ ^
+       third_party\lexilla\lexlib\*.cxx third_party\lexilla\lexers\*.cxx
+    if errorlevel 1 (
+        echo ERROR: Lexilla compilation failed.
+        exit /b 1
+    )
+    lib /nologo /OUT:build\lexilla.lib build\lexilla-obj\*.obj
+    if errorlevel 1 (
+        echo ERROR: Lexilla library failed.
+        exit /b 1
+    )
+)
+
 echo Compiling resources...
 rc /nologo /fo build\app.res resources\app.rc
 if errorlevel 1 (
@@ -65,9 +84,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
-set "CFLAGS=/nologo /std:c++20 /EHsc /W4 /permissive- /utf-8 /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX /Ithird_party\scintilla\include /Ithird_party\scintilla\src"
+set "CFLAGS=/nologo /std:c++20 /EHsc /W4 /permissive- /utf-8 /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX /Ithird_party\scintilla\include /Ithird_party\scintilla\src /Ithird_party\lexilla\include /Ithird_party\lexilla\lexlib"
 set "LDFLAGS=/nologo /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF /LTCG /MAP:build\67ed.map"
-set "LIBS=build\scintilla.lib user32.lib gdi32.lib comdlg32.lib shell32.lib ole32.lib oleaut32.lib advapi32.lib dwmapi.lib uxtheme.lib comctl32.lib imm32.lib shlwapi.lib psapi.lib"
+set "LIBS=build\lexilla.lib build\scintilla.lib user32.lib gdi32.lib comdlg32.lib shell32.lib ole32.lib oleaut32.lib advapi32.lib dwmapi.lib uxtheme.lib comctl32.lib imm32.lib shlwapi.lib psapi.lib"
 
 if /I "%MODE%"=="debug" (
     set "CFLAGS=%CFLAGS% /Od /Zi /MT /DDEBUG"

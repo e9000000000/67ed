@@ -10,6 +10,9 @@ A native Windows text editor: dark, tabbed, session-restoring, comfortable with
 - Flat rounded-square icon; optional per-user default-editor registration
 - Tabs, session restore, crash recovery, single-instance handoff
 - Editor and interface fonts, word wrap, find/replace, zoom, recent files
+- Syntax highlighting for code, markup, and data formats (C/C++, C#, Java,
+  JavaScript/TypeScript, Go, Python, Rust, HTML/XML/PHP, CSS, JSON, Markdown,
+  YAML, TOML, SQL, shell, Dockerfile, CMake, and more)
 - UTF-8/UTF-16/ANSI, CRLF/LF/CR, 100 MB target
 
 ## Build
@@ -41,6 +44,8 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Single instance: a later launch adds a tab to the running window and exits
 - Word wrap, line numbers, EOL conversion, zoom, editor font, interface font,
   tab width, indent-with-spaces, line spacing
+- Syntax highlighting detected from the filename, with a View toggle; large files
+  stay plain text to protect scrolling and opening speed
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
 - Go to line: Ctrl+G
@@ -58,9 +63,9 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
-- Headless `--selftest` (207 checks) and `--bench` modes; no windows are shown
-- 100 MB class files: no-wrap large-file mode, measured 440 ms open / 226 ms save,
-  210 MB RSS after save (`docs/PERF.md`)
+- Headless `--selftest` (226 checks) and `--bench` modes; no windows are shown
+- 100 MB class files: no-wrap large-file mode, measured 249 ms open / 205 ms save,
+  218 MB RSS after save (`docs/PERF.md`)
 
 Not there yet: the final DPI/visual pass and visible-window startup measurement.
 
@@ -74,5 +79,8 @@ Under construction. See [`docs/PLAN.md`](docs/PLAN.md) for milestones and
 
 - [Scintilla](https://www.scintilla.org/) 5.6.8 — vendored under
   `third_party/scintilla`, license in `third_party/scintilla/License.txt`.
+- [Lexilla](https://www.scintilla.org/Lexilla.html) 5.5.5 — a static subset for
+  syntax highlighting under `third_party/lexilla`, license in
+  `third_party/lexilla/License.txt`.
 
 67ed is not affiliated with Notepad, Notepad++, or Scintilla.

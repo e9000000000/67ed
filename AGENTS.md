@@ -7,12 +7,13 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 ## Current state
 
 M0–M3 are complete and M4 is in progress. The app builds as a single x64 executable
-(~1.47 MiB) and currently has: custom dark title/tab/status chrome with a burger
+(~2.03 MiB) and currently has: custom dark title/tab/status chrome with a burger
 menu (tabs live in the caption row), one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
-numbers/EOL/zoom, the font dialog, tab width / indent-with-spaces / line-spacing
-controls, a find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3, match case, whole word,
+numbers/EOL/zoom, editor and interface font dialogs, tab width /
+indent-with-spaces / line-spacing controls, syntax highlighting from Lexilla, a
+find/replace bar (Ctrl+F, Ctrl+H, F3, Shift+F3, match case, whole word,
 regex, replace all), go-to-line (Ctrl+G), insert/overwrite (Insert), tab
 drag-reorder and context menu, a recent-files menu, external-change
 watching/reload, crash logging, best-effort dark file dialogs, and dirty-buffer
@@ -33,8 +34,9 @@ SDK 10.0.26100+.
 ```
 
 The build script locates Visual Studio via `vswhere`, imports `vcvars64.bat`,
-builds Scintilla as a static library, compiles the app with `/MT`, and links one
-EXE. Do not add a runtime DLL, installer, or package manager requirement.
+builds Scintilla and Lexilla as static libraries, compiles the app with `/MT`, and
+links one EXE. Do not add a runtime DLL, installer, or package manager
+requirement.
 
 ## Releases
 
@@ -77,6 +79,7 @@ src/
   linebar.*         dark go-to-line bar
   linenav.*         line-number parsing and clamping
   editor.*          per-tab Scintilla wrapper, theme, view state, chunked save
+  syntax.*          language detection, Lexilla setup, dark syntax palette
   headless.*        --selftest / --bench / --make-fixture, hidden host only
   fileio.*          file read/write, encoding/EOL detection, atomic save
   filewatch.*       external file-change stamps
@@ -92,6 +95,7 @@ resources/
   app.manifest      per-monitor DPI, common controls v6
 third_party/
   scintilla/        vendored Scintilla 5.6.8, unmodified
+  lexilla/          vendored Lexilla 5.5.5 subset, unmodified
 docs/
   PLAN.md           milestones and acceptance criteria
   ARCHITECTURE.md   detailed design
@@ -116,8 +120,8 @@ tests/
    Scintilla's buffer is UTF-8 (`SC_CP_UTF8`).
 7. **Large files.** Loading/saving must be chunked or at least avoid a second full
    copy of the file. 100 MB is the target; guard at 2 GB.
-8. **Vendored Scintilla is read-only.** Put fixes in our code. If a Scintilla patch
-   is unavoidable, document it in `third_party/PATCHES.md`.
+8. **Vendored Scintilla and Lexilla are read-only.** Put fixes in our code. If a
+   patch is unavoidable, document it in `third_party/PATCHES.md`.
 9. **Atomic state writes.** Session/settings are written to a temp file then renamed.
 10. **No telemetry, no network, no auto-update.**
 
@@ -170,14 +174,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
   single-instance payloads, window clamping, Unicode surrogate pairs, corrupt
   session backup, recent labels, find/line bars, editor setting application,
   settings round-trip/backup, tab-bar hit testing, status-bar drag area, shell
-  registration helpers, interface/editor font settings, and chunked save. Expect
-  `summary passed=207 failed=0`.
+  registration helpers, interface/editor font settings, syntax detection and
+  styling, and chunked save. Expect `summary passed=226 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.
 - All of these accept `--log <path>`.
 - Manual smoke: tabs, dirty close prompts, restart restore, second launch, DPI
-  125/150/200%, UTF-8/UTF-16/ANSI files, CRLF/LF, read-only files.
+  125/150/200%, UTF-8/UTF-16/ANSI files, CRLF/LF, read-only files, and syntax
+  colours for common extensions.
 
 ## Known pitfalls
 
@@ -187,6 +192,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
   for the dark look.
 - Scintilla keeps the full document in memory (gap buffer). 100 MB is fine; 1 GB+
   is out of scope for the current engine.
+- Lexilla colourising a huge buffer is costly; syntax highlighting auto-disables
+  above 16 MB.
 - Word wrap on very large files can be expensive; auto-disable above ~16 MB unless
   the user forces it.
 - `SetForegroundWindow` is restricted; use `AllowSetForegroundWindow(ASFW_ANY)` in

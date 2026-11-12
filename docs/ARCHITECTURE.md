@@ -31,7 +31,29 @@ engine would use less RAM at 1 GB+, but would require rebuilding the editor widg
 and all of its edge cases.
 
 Vendored source: `third_party/scintilla` 5.6.8, built as a static library with the
-static CRT. No Lexilla (no syntax highlighting), which keeps the binary small.
+static CRT. Syntax highlighting uses a vendored subset of Lexilla 5.5.5, also
+built statically, so the app keeps one EXE and no runtime DLLs.
+
+## Syntax highlighting
+
+`src/syntax.cpp` is the adapter between 67ed and Lexilla:
+
+- The tab stores a `syntax::Language`, detected from the filename and extension
+  on open and on Save As. Filenames such as `Makefile`, `Dockerfile`,
+  `CMakeLists.txt`, and `go.mod` are handled before extensions.
+- `syntax::Apply` creates an `ILexer5` from the selected `LexerModule`, installs
+  it with `SCI_SETILEXER`, supplies keyword lists with `SCI_SETKEYWORDS`, applies
+  the dark style map, and asks Scintilla to colourise.
+- Style numbers are lexer-specific, so each bundled language has an explicit
+  map into semantic roles (comment, keyword, type, string, number, tag,
+  attribute, function, variable, error, and so on). Colours live in `theme.h`.
+- Highlighting is automatic and on by default. The View menu toggles it globally
+  (`syntaxHighlighting` in `settings.json`). Files above 16 MB stay plain text to
+  protect open/scroll performance, and the status bar names the active language
+  only when highlighting is actually applied.
+- Lexilla is a curated subset in `third_party/lexilla` (29 lexers plus `lexlib`),
+  built by `build.bat` into `build\lexilla.lib`. To add a lexer, see
+  `third_party/lexilla/VENDORED.md`.
 
 ## UI layout
 
@@ -197,7 +219,7 @@ for `.txt`. `--register-default` performs only the silent registration.
 ## Build
 
 - `build.bat`: locate VS via `vswhere`, import `vcvars64.bat`.
-- Build Scintilla static lib with `nmake -f scintilla.mak ..\bin\libscintilla.lib`.
+- Build Scintilla and Lexilla static libraries from the vendored sources.
 - Compile app with `/std:c++20 /MT /O2 /GL /W4 /permissive- /utf-8`.
 - Link `/SUBSYSTEM:WINDOWS /LTCG` with system libs and `libscintilla.lib`.
 - Embed manifest (per-monitor v2 DPI, common controls v6) and icon via `rc.exe`.
@@ -207,13 +229,14 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 207 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 226 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit
   testing, status-bar drag area, shell registration helpers, editor setting
-  application, interface/editor font settings, settings round-trip/backup, window
-  clamping, read-only handling, crash-log writing,
+  application, interface/editor font settings, syntax detection and styling,
+  settings round-trip/backup, window clamping, read-only handling, crash-log
+  writing,
   Unicode surrogate pairs, empty files, corrupt-session backup, and chunked save.
   No editor window or message box appears.
 - `--bench <path>`: internal open/RSS/find/scroll/save timings on a real file.

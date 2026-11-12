@@ -13,6 +13,7 @@ struct Settings {
     bool useSpaces = false;
     bool wrap = true;
     bool lineNumbers = true;
+    bool syntaxHighlighting = true;
     int zoom = 0;
     std::vector<std::wstring> recent;
 };

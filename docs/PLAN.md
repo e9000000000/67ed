@@ -9,8 +9,8 @@
 - **Scintilla in-memory model** is accepted: 100 MB ≈ 130–200 MB RSS. 1 GB+ files
   are out of scope for this engine.
 - Relaunch with no arguments opens a **new empty tab**. Closing the last tab exits.
-- Narrow first version: plain text. No syntax highlighting, plugins, multi-cursor,
-  or split view.
+- Syntax highlighting is filename-driven and optional. Plugins, multi-cursor, and
+  split view remain out of scope for v1.
 
 ## Progress
 
@@ -33,12 +33,12 @@
 - **M4 in progress.** Crash logging, the bench/test suite, hidden chrome startup
   measurement, monitor-safe window restore, best-effort dark file dialogs, a
   compact custom title bar with integrated full-width tabs, and GitHub Actions
-  build/release packaging, a matching multi-size icon, and per-user default-editor
-  registration are done. Remaining: a manual DPI/visual pass and visible-window
-  startup measurement.
+  build/release packaging, a matching multi-size icon, per-user default-editor
+  registration, editor/interface font settings, and Lexilla syntax highlighting are
+  done. Remaining: a manual DPI/visual pass and visible-window startup measurement.
 
-Latest measured 98.4 MiB file: 440 ms open, 226 ms chunked save, 210 MB RSS after
-save. Release EXE 1.38 MiB. See `docs/PERF.md`.
+Latest measured 100 MiB file: 249 ms open, 205 ms chunked save, 220 MB RSS after
+save. Release EXE 2.03 MiB. See `docs/PERF.md`.
 
 ## Target numbers
 
@@ -103,6 +103,7 @@ encoding matrix round-trips byte-for-byte when unedited.
 
 - High-DPI pass (125/150/200%), dark native-ish dialogs, scrollbar theming.
 - Crash log, per-user default-editor registration, portable mode.
+- Lexilla syntax highlighting for code, markup, and data formats.
 - Bench suite and unit tests wired into the build.
 - Final size/startup budget check.
 
@@ -120,5 +121,5 @@ encoding matrix round-trips byte-for-byte when unedited.
 
 ## Out of scope (v1)
 
-Syntax highlighting, plugins, multi-cursor, split view, printing, macro recording,
-remote editing, collaboration, macOS/Linux UI, 1 GB+ files.
+Plugins, multi-cursor, split view, printing, macro recording, remote editing,
+collaboration, macOS/Linux UI, 1 GB+ files.

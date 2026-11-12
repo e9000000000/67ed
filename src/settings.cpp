@@ -101,6 +101,7 @@ bool LoadSettingsFile(const std::wstring& path, Settings& settings) {
     settings.useSpaces = root["useSpaces"].asBool(false);
     settings.wrap = root["wrap"].asBool(true);
     settings.lineNumbers = root["lineNumbers"].asBool(true);
+    settings.syntaxHighlighting = root["syntaxHighlighting"].asBool(true);
     settings.zoom = static_cast<int>(root["zoom"].asInt(0));
     settings.recent.clear();
     const Json& recent = root["recent"];
@@ -139,6 +140,7 @@ bool SaveSettingsFile(const std::wstring& path, const Settings& settings) {
     root["useSpaces"] = Json(settings.useSpaces);
     root["wrap"] = Json(settings.wrap);
     root["lineNumbers"] = Json(settings.lineNumbers);
+    root["syntaxHighlighting"] = Json(settings.syntaxHighlighting);
     root["zoom"] = Json(settings.zoom);
     Json recent = Json::MakeArray();
     for (const auto& recentPath : settings.recent) {

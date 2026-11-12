@@ -141,6 +141,7 @@ void StatusBar::paint(HDC target) {
         drawField(info_.lines, theme::kTextDim, true);
         drawField(info_.encoding, theme::kTextDim, true);
         drawField(info_.eol, theme::kTextDim, true);
+        drawField(info_.syntax, theme::kTextDim, true);
         drawField(info_.wrap, theme::kTextDim, true);
     }
 

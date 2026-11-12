@@ -26,23 +26,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-bench.ps1 `
   -Fixture "$env:TEMP\opencode\big-100mb.txt"
 ```
 
-## Results (2026-11-01)
+## Results (2026-11-12)
 
 | Metric | Result |
 |---|---|
-| EXE size | 1,540,096 bytes (1.47 MiB) |
-| Read + decode | 264 ms |
-| Load into Scintilla (`SCI_ADDTEXT`) | 163 ms |
-| Open total (read + load) | 440 ms |
-| RSS after open | 210 MB |
-| Find (`SCI_SEARCHINTARGET`, first hit) | 0.1 ms |
+| EXE size | 2,123,776 bytes (2.03 MiB) |
+| Read + decode | 139 ms |
+| Load into Scintilla (`SCI_ADDTEXT`) | 100 ms |
+| Open total (read + load) | 249 ms |
+| RSS after open | 220 MB |
+| Find (`SCI_SEARCHINTARGET`, first hit) | 0.4 ms |
 | Scroll to last line | 0.0 ms |
-| Save 98.4 MiB (chunked) | 226 ms |
-| RSS after save | 210 MB |
+| Save 100 MiB (chunked) | 205 ms |
+| RSS after save | 218 MB |
 
-Save now streams 4 MB chunks from Scintilla directly to the temp file instead of
-copying the whole buffer. RSS after save previously rose to ~309 MB; it now stays
-flat at ~210 MB, inside the 300 MB budget.
+Syntax highlighting is automatically off above 16 MB, so this 100 MB measurement
+runs on the plain-text path. Save streams 4 MB chunks from Scintilla directly to
+the temp file instead of copying the whole buffer; RSS stays under the 300 MB
+budget.
 
 ## 20 MB single line (2026-11-01)
 

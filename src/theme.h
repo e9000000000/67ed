@@ -25,6 +25,25 @@ constexpr COLORREF kMarginText = RGB(112, 112, 112);
 constexpr COLORREF kInput = RGB(21, 21, 21);
 constexpr COLORREF kDanger = RGB(224, 82, 82);
 
+// Syntax highlighting palette, tuned for the dark editor background.
+constexpr COLORREF kSyntaxComment = RGB(106, 153, 85);
+constexpr COLORREF kSyntaxKeyword = RGB(197, 134, 192);
+constexpr COLORREF kSyntaxType = RGB(78, 201, 176);
+constexpr COLORREF kSyntaxString = RGB(206, 145, 120);
+constexpr COLORREF kSyntaxNumber = RGB(181, 206, 168);
+constexpr COLORREF kSyntaxOperator = RGB(212, 212, 212);
+constexpr COLORREF kSyntaxPreprocessor = RGB(155, 155, 155);
+constexpr COLORREF kSyntaxTag = RGB(86, 156, 214);
+constexpr COLORREF kSyntaxAttribute = RGB(156, 220, 254);
+constexpr COLORREF kSyntaxFunction = RGB(220, 220, 170);
+constexpr COLORREF kSyntaxVariable = RGB(156, 220, 254);
+constexpr COLORREF kSyntaxConstant = RGB(79, 193, 255);
+constexpr COLORREF kSyntaxError = RGB(244, 71, 71);
+constexpr COLORREF kSyntaxHeader = RGB(86, 156, 214);
+constexpr COLORREF kSyntaxLink = RGB(79, 193, 255);
+constexpr COLORREF kSyntaxAdded = RGB(106, 153, 85);
+constexpr COLORREF kSyntaxDeleted = RGB(224, 108, 117);
+
 constexpr int kMenuHeight = 30;
 constexpr int kTabHeight = 28;
 constexpr int kStatusHeight = 24;

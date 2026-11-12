@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "Scintilla.h"
+#include "SciLexer.h"
 #include "accel.h"
 #include "cli.h"
 #include "commands.h"
@@ -35,6 +36,7 @@
 #include "session.h"
 #include "settings.h"
 #include "shellintegration.h"
+#include "syntax.h"
 #include "statusbar.h"
 #include "tabbar.h"
 #include "taborder.h"
@@ -776,6 +778,7 @@ void TestSettings(TestLog& log, const fs::path& dir) {
     saved.useSpaces = true;
     saved.wrap = false;
     saved.lineNumbers = false;
+    saved.syntaxHighlighting = false;
     saved.zoom = 2;
     saved.recent = {L"C:\\x.txt"};
     const fs::path settingsPath = dir / "settings.json";
@@ -785,7 +788,8 @@ void TestSettings(TestLog& log, const fs::path& dir) {
     log.check(loaded.fontFamily == L"Consolas" && loaded.fontSize == 13 &&
               loaded.uiFontFace == L"Segoe UI" && loaded.uiFontSize == 11 &&
               loaded.extraLeading == 2 && loaded.tabWidth == 8 && loaded.useSpaces &&
-              !loaded.wrap && !loaded.lineNumbers && loaded.zoom == 2 &&
+              !loaded.wrap && !loaded.lineNumbers && !loaded.syntaxHighlighting &&
+              loaded.zoom == 2 &&
               loaded.recent.size() == 1, "settings.roundtrip");
 
     Settings invalid;
@@ -807,6 +811,112 @@ void TestSettings(TestLog& log, const fs::path& dir) {
     Settings corrupt;
     log.check(!LoadSettingsFile(corruptPath.wstring(), corrupt), "settings.corrupt.rejected");
     log.check(FileExists(corruptPath.wstring() + L".bad"), "settings.corrupt.backup");
+}
+
+void TestSyntax(TestLog& log) {
+    using syntax::Language;
+    log.check(syntax::Detect(L"main.cpp") == Language::Cpp &&
+                  syntax::Detect(L"script.py") == Language::Python &&
+                  syntax::Detect(L"app.ts") == Language::TypeScript &&
+                  syntax::Detect(L"index.html") == Language::Html &&
+                  syntax::Detect(L"data.json") == Language::Json &&
+                  syntax::Detect(L"notes.md") == Language::Markdown,
+              "syntax.detect.code");
+    log.check(syntax::Detect(L"style.css") == Language::Css &&
+                  syntax::Detect(L"config.yaml") == Language::Yaml &&
+                  syntax::Detect(L"Cargo.toml") == Language::Toml &&
+                  syntax::Detect(L"settings.ini") == Language::Ini &&
+                  syntax::Detect(L"query.sql") == Language::Sql &&
+                  syntax::Detect(L"README.txt") == Language::Plain,
+              "syntax.detect.data");
+    log.check(syntax::Detect(L"C:\\work\\Makefile") == Language::Makefile &&
+                  syntax::Detect(L"C:\\work\\Dockerfile") == Language::Dockerfile &&
+                  syntax::Detect(L"C:\\work\\CMakeLists.txt") == Language::CMake &&
+                  syntax::Detect(L"C:\\work\\go.mod") == Language::Go,
+              "syntax.detect.filenames");
+    log.check(std::wstring(syntax::Name(Language::Markdown)) == L"Markdown" &&
+                  std::wstring(syntax::Name(Language::Plain)) == L"Plain Text",
+              "syntax.names");
+
+    HWND host = CreateHost();
+    log.check(host != nullptr, "syntax.host");
+    if (!host) {
+        return;
+    }
+    HWND sci = editor::Create(host, GetModuleHandleW(nullptr));
+    log.check(sci != nullptr, "syntax.editor");
+    if (!sci) {
+        DestroyWindow(host);
+        return;
+    }
+    editor::ApplySettings(sci, TestSettings());
+
+    editor::SetText(sci, "int main() { // comment\n}\n");
+    syntax::Apply(sci, Language::Cpp, true, 100);
+    log.check(SendMessageW(sci, SCI_GETSTYLEAT, 0, 0) == SCE_C_WORD, "syntax.cpp.keyword");
+    log.check(SendMessageW(sci, SCI_GETSTYLEAT, 19, 0) == SCE_C_COMMENTLINE,
+              "syntax.cpp.comment");
+
+    editor::SetText(sci, "# Heading\n");
+    syntax::Apply(sci, Language::Markdown, true, 100);
+    log.check(SendMessageW(sci, SCI_GETSTYLEAT, 0, 0) == SCE_MARKDOWN_HEADER1,
+              "syntax.markdown.header");
+
+    const auto styleAt = [&](int position) {
+        return static_cast<int>(SendMessageW(sci, SCI_GETSTYLEAT, position, 0));
+    };
+    editor::SetText(sci, "def f():\n    pass\n");
+    syntax::Apply(sci, Language::Python, true, 100);
+    log.check(styleAt(0) == SCE_P_WORD && styleAt(14) == SCE_P_WORD,
+              "syntax.python.keyword");
+
+    editor::SetText(sci, "{\"name\": 1}\n");
+    syntax::Apply(sci, Language::Json, true, 100);
+    log.check(styleAt(1) == SCE_JSON_PROPERTYNAME && styleAt(9) == SCE_JSON_NUMBER,
+              "syntax.json.styles");
+
+    editor::SetText(sci, "<div class=\"x\">text</div>\n");
+    syntax::Apply(sci, Language::Html, true, 100);
+    log.check(styleAt(1) == SCE_H_TAG && styleAt(5) == SCE_H_ATTRIBUTE,
+              "syntax.html.styles");
+
+    editor::SetText(sci, "body { color: red; }\n");
+    syntax::Apply(sci, Language::Css, true, 100);
+    log.check(styleAt(0) == SCE_CSS_TAG && styleAt(7) == SCE_CSS_UNKNOWN_IDENTIFIER,
+              "syntax.css.styles");
+
+    editor::SetText(sci, "SELECT * FROM table1\n");
+    syntax::Apply(sci, Language::Sql, true, 100);
+    log.check(styleAt(0) == SCE_SQL_WORD && styleAt(9) == SCE_SQL_WORD,
+              "syntax.sql.keywords");
+
+    editor::SetText(sci, "fn main() {}\n");
+    syntax::Apply(sci, Language::Rust, true, 100);
+    log.check(styleAt(0) == SCE_RUST_WORD && styleAt(3) == SCE_RUST_IDENTIFIER,
+              "syntax.rust.keywords");
+
+    editor::SetText(sci, "key: true\n");
+    syntax::Apply(sci, Language::Yaml, true, 100);
+    log.check(styleAt(0) == SCE_YAML_IDENTIFIER && styleAt(5) == SCE_YAML_KEYWORD,
+              "syntax.yaml.styles");
+
+    editor::SetText(sci, "key = true\n");
+    syntax::Apply(sci, Language::Toml, true, 100);
+    log.check(styleAt(0) == SCE_TOML_KEY && styleAt(6) == SCE_TOML_KEYWORD,
+              "syntax.toml.styles");
+
+    syntax::Apply(sci, Language::Cpp, true, 100);
+    syntax::Apply(sci, Language::Cpp, false, 100);
+    log.check(SendMessageW(sci, SCI_GETSTYLEAT, 0, 0) == 0,
+              "syntax.disabled.clear");
+
+    syntax::Apply(sci, Language::Python, true, syntax::kMaxHighlightBytes + 1);
+    char language[64]{};
+    SendMessageW(sci, SCI_GETLEXERLANGUAGE, 0, reinterpret_cast<LPARAM>(language));
+    log.check(language[0] == '\0', "syntax.large.plain");
+
+    DestroyWindow(sci);
+    DestroyWindow(host);
 }
 
 void TestTabOrder(TestLog& log) {
@@ -949,6 +1059,7 @@ int RunSelfTest(const std::wstring& logPath) {
     TestSession(log, dir);
     TestSettings(log, dir);
     TestScintilla(log, dir);
+    TestSyntax(log);
     TestTabOrder(log);
 
     fs::remove_all(dir, error);

@@ -198,6 +198,8 @@ void MenuBar::rebuildMenus() {
     view.title = L"View";
     view.items.push_back(MakeItem(kCmdWrap, L"Word Wrap", L"Alt+Z", has, state_.wrap));
     view.items.push_back(MakeItem(kCmdLineNumbers, L"Line Numbers", L"", true, state_.lineNumbers));
+    view.items.push_back(MakeItem(kCmdSyntaxHighlighting, L"Syntax Highlighting", L"", true,
+                                  state_.syntaxHighlighting));
     view.items.push_back(MakeSeparator());
     view.items.push_back(MakeItem(kCmdEolCrlf, L"EOL: Windows (CRLF)", L"", has, state_.eol == EolMode::Crlf));
     view.items.push_back(MakeItem(kCmdEolLf, L"EOL: Unix (LF)", L"", has, state_.eol == EolMode::Lf));

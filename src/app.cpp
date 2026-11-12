@@ -246,6 +246,7 @@ MenuState App::currentMenuState() {
     state.hasTab = tab != nullptr;
     state.wrap = tab ? tab->wrap : settings_.wrap;
     state.lineNumbers = settings_.lineNumbers;
+    state.syntaxHighlighting = settings_.syntaxHighlighting;
     state.eol = tab ? tab->eol : EolMode::Crlf;
     if (tab && tab->loaded) {
         state.canUndo = Sci(tab, SCI_CANUNDO) != 0;
@@ -335,6 +336,8 @@ void App::showBurgerMenu(int section) {
     case 2:
         add(kCmdWrap, L"Word Wrap", L"Alt+Z", has, state.wrap);
         add(kCmdLineNumbers, L"Line Numbers", L"", true, state.lineNumbers);
+        add(kCmdSyntaxHighlighting, L"Syntax Highlighting", L"", true,
+            state.syntaxHighlighting);
         separator();
         add(kCmdEolCrlf, L"EOL: Windows (CRLF)", L"", has, state.eol == EolMode::Crlf);
         add(kCmdEolLf, L"EOL: Unix (LF)", L"", has, state.eol == EolMode::Lf);
@@ -519,6 +522,14 @@ void App::onCommand(UINT id) {
     case kCmdLineNumbers:
         toggleLineNumbers();
         break;
+    case kCmdSyntaxHighlighting:
+        settings_.syntaxHighlighting = !settings_.syntaxHighlighting;
+        applySettingsToAll();
+        SaveSettings(settings_);
+        markSessionDirty();
+        setStatusMessage(settings_.syntaxHighlighting ? L"Syntax highlighting on"
+                                                       : L"Syntax highlighting off");
+        break;
     case kCmdEolCrlf:
         convertEol(EolMode::Crlf);
         break;
@@ -608,6 +619,7 @@ void App::restoreSession(const SessionState& session) {
         tab->untitledNumber = saved.untitledNumber;
         tab->displayName = saved.untitled ? (L"Untitled " + std::to_wstring(saved.untitledNumber))
                                          : FileNameOf(saved.path);
+        tab->language = syntax::Detect(tab->path);
         tab->cursor = saved.cursor;
         tab->anchor = saved.anchor;
         tab->firstVisibleLine = saved.firstVisibleLine;
@@ -879,6 +891,10 @@ void App::updateStatus() {
             info.encoding += L" BOM";
         }
         info.eol = EolName(tab->eol);
+        if (settings_.syntaxHighlighting && tab->language != syntax::Language::Plain &&
+            editor::Length(tab->sci) <= syntax::kMaxHighlightBytes) {
+            info.syntax = syntax::Name(tab->language);
+        }
         info.wrap = tab->wrap ? L"Wrap" : L"";
         if (Sci(tab, SCI_GETOVERTYPE) != 0) {
             info.wrap = info.wrap.empty() ? L"OVR" : L"OVR " + info.wrap;
@@ -964,6 +980,7 @@ Tab& App::addTab(const std::wstring& path) {
         tab->path = FullPath(path);
         tab->untitled = false;
         tab->displayName = FileNameOf(tab->path);
+        tab->language = syntax::Detect(tab->path);
     } else {
         tab->untitled = true;
         tab->untitledNumber = untitledCounter_++;
@@ -1073,6 +1090,7 @@ bool App::ensureLoaded(int index) {
     editor::SetZoom(sci, tab.zoom);
     tab.sci = sci;
     tab.loaded = true;
+    syntax::Apply(sci, tab.language, settings_.syntaxHighlighting, editor::Length(sci));
     if (!recovered) {
         tab.dirty = false;
     }
@@ -1340,6 +1358,7 @@ bool App::saveTab(Tab& tab, bool saveAs) {
     tab.path = FullPath(target);
     tab.untitled = false;
     tab.displayName = FileNameOf(tab.path);
+    tab.language = syntax::Detect(tab.path);
     tab.readOnly = false;
     editor::SetReadOnly(tab.sci, false);
     Sci(&tab, SCI_SETSAVEPOINT);
@@ -1347,6 +1366,7 @@ bool App::saveTab(Tab& tab, bool saveAs) {
     tab.dirty = false;
     tab.diskChanged = false;
     tab.diskStamp = filewatch::Read(tab.path);
+    syntax::Apply(tab.sci, tab.language, settings_.syntaxHighlighting, editor::Length(tab.sci));
     AddRecentFile(settings_, tab.path);
     SaveSettings(settings_);
     updateTabBar();
@@ -1752,6 +1772,8 @@ void App::applySettingsToAll() {
         local.wrap = tab->wrap;
         local.zoom = tab->zoom;
         editor::ApplySettings(tab->sci, local);
+        syntax::Apply(tab->sci, tab->language, settings_.syntaxHighlighting,
+                      editor::Length(tab->sci));
         editor::SetReadOnly(tab->sci, tab->readOnly);
         editor::UpdateLineNumberWidth(tab->sci);
     }

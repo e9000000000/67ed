@@ -13,6 +13,7 @@
 #include "session.h"
 #include "settings.h"
 #include "statusbar.h"
+#include "syntax.h"
 #include "tabbar.h"
 #include "types.h"
 
@@ -27,6 +28,7 @@ struct Tab {
     bool loaded = false;
     bool readOnly = false;
     bool dirty = false;
+    syntax::Language language = syntax::Language::Plain;
     Encoding encoding = Encoding::Utf8;
     bool bom = false;
     EolMode eol = EolMode::Crlf;

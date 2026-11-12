@@ -23,6 +23,7 @@ enum : unsigned int {
     kCmdTimeDate,
     kCmdWrap,
     kCmdLineNumbers,
+    kCmdSyntaxHighlighting,
     kCmdEolCrlf,
     kCmdEolLf,
     kCmdEolCr,

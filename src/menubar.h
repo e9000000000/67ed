@@ -11,6 +11,7 @@ struct MenuState {
     bool hasTab = false;
     bool wrap = true;
     bool lineNumbers = true;
+    bool syntaxHighlighting = true;
     bool canUndo = false;
     bool canRedo = false;
     bool hasSelection = false;

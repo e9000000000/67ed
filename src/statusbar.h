@@ -11,6 +11,7 @@ struct StatusInfo {
     std::wstring lines;
     std::wstring encoding = L"UTF-8";
     std::wstring eol = L"CRLF";
+    std::wstring syntax;
     std::wstring wrap;
     std::wstring size;
     std::wstring message;
