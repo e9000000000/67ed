@@ -850,7 +850,12 @@ void App::layout() {
         }
         SetWindowPos(tab.sci, nullptr, 0, editorTop, width, editorHeight,
                      SWP_NOZORDER | SWP_NOACTIVATE);
-        ShowWindow(tab.sci, static_cast<int>(i) == active_ ? SW_SHOW : SW_HIDE);
+        if (static_cast<int>(i) == active_) {
+            ShowWindow(tab.sci, SW_SHOW);
+            editor::SyncScrollBars(tab.sci);
+        } else {
+            ShowWindow(tab.sci, SW_HIDE);
+        }
     }
 }
 

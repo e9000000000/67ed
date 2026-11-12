@@ -862,13 +862,25 @@ void TestSyntax(TestLog& log) {
     SetWindowPos(sci, nullptr, 0, 0, 800, 600, SWP_NOZORDER | SWP_NOACTIVATE);
     std::string manyLines;
     for (int i = 0; i < 1000; ++i) {
-        manyLines += "int value = 42; // line\n";
+        manyLines += "int value = 42; // " + std::string(50, 'x') + " word word word word\n";
     }
     editor::SetText(sci, manyLines);
+    editor::SetWrap(sci, false);
     SendMessageW(sci, SCI_SETFIRSTVISIBLELINE, 500, 0);
     syntax::Apply(sci, Language::Cpp, true, 100);
     log.check(SendMessageW(sci, SCI_GETFIRSTVISIBLELINE, 0, 0) == 500,
               "syntax.scroll.preserved");
+    ShowWindow(sci, SW_HIDE);
+    SetWindowPos(sci, nullptr, 0, 0, 900, 700, SWP_NOZORDER | SWP_NOACTIVATE);
+    SendMessageW(sci, SCI_SETFIRSTVISIBLELINE, 972, 0);
+    ShowWindow(sci, SW_SHOW);
+    editor::SyncScrollBars(sci);
+    SCROLLINFO scrollInfo{sizeof(scrollInfo), SIF_ALL};
+    GetScrollInfo(sci, SB_VERT, &scrollInfo);
+    log.check(scrollInfo.nPos >= 900 &&
+                  scrollInfo.nPos == SendMessageW(sci, SCI_GETFIRSTVISIBLELINE, 0, 0) &&
+                  scrollInfo.nPage > 0,
+              "syntax.scrollbar.sync");
     editor::SetText(sci, "int main() { // comment\n}\n");
     syntax::Apply(sci, Language::Cpp, true, 100);
 

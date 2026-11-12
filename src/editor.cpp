@@ -277,6 +277,30 @@ void RefreshChromeStyles(HWND sci) {
     }
 }
 
+void SyncScrollBars(HWND sci) {
+    if (!sci) {
+        return;
+    }
+    // Scintilla ignores scrollbar updates while the control is hidden, which
+    // leaves a stale thumb after a tab has been laid out but not yet shown.
+    // Re-send WM_SIZE now that it is visible, then nudge the top line so the
+    // scrollbar position is written even when the line itself did not change.
+    RECT client{};
+    GetClientRect(sci, &client);
+    SendMessageW(sci, WM_SETREDRAW, FALSE, 0);
+    SendMessageW(sci, WM_SIZE, SIZE_RESTORED, MAKELPARAM(client.right, client.bottom));
+    const sptr_t top = S(sci, SCI_GETFIRSTVISIBLELINE);
+    const sptr_t maxTop =
+        std::max<sptr_t>(0, S(sci, SCI_GETLINECOUNT) - S(sci, SCI_LINESONSCREEN));
+    if (maxTop > 0) {
+        const sptr_t other = top > 0 ? top - 1 : 1;
+        S(sci, SCI_SETFIRSTVISIBLELINE, other);
+        S(sci, SCI_SETFIRSTVISIBLELINE, top);
+    }
+    SendMessageW(sci, WM_SETREDRAW, TRUE, 0);
+    InvalidateRect(sci, nullptr, FALSE);
+}
+
 void Focus(HWND sci) {
     if (sci) {
         SetFocus(sci);

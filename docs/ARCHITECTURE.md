@@ -51,6 +51,9 @@ built statically, so the app keeps one EXE and no runtime DLLs.
   (`syntaxHighlighting` in `settings.json`). Files above 16 MB stay plain text to
   protect open/scroll performance, and the status bar names the active language
   only when highlighting is actually applied.
+- Scintilla ignores scrollbar updates while a control is hidden. `App::layout`
+  re-sends `WM_SIZE` and nudges the top line after showing the active tab, so the
+  native scrollbar thumb stays in sync with the viewport.
 - Lexilla is a curated subset in `third_party/lexilla` (29 lexers plus `lexlib`),
   built by `build.bat` into `build\lexilla.lib`. To add a lexer, see
   `third_party/lexilla/VENDORED.md`.
@@ -229,7 +232,7 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 228 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 229 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit

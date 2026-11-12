@@ -20,6 +20,8 @@ void SetWrap(HWND sci, bool wrap);
 void SetLineNumbers(HWND sci, bool show);
 // Restores margin/brace styles after a lexer call to SCI_STYLECLEARALL.
 void RefreshChromeStyles(HWND sci);
+// Recomputes the native scrollbar after a hidden control is shown.
+void SyncScrollBars(HWND sci);
 void SetEol(HWND sci, EolMode eol);
 void SetReadOnly(HWND sci, bool readOnly);
 void SetZoom(HWND sci, int zoom);
