@@ -1,13 +1,21 @@
 #include "markdown.h"
 
+#include <commctrl.h>
+#include <objidl.h>
+#include <propidl.h>
+#include <gdiplus.h>
+
 #include <algorithm>
 #include <cctype>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "Scintilla.h"
 #include "theme.h"
+#include "util.h"
 
 namespace markdown {
 namespace {
@@ -58,6 +66,8 @@ bool IsHorizontalRule(std::string_view text) {
 struct Builder {
     std::string text;
     std::vector<unsigned char> styles;
+    std::vector<Link> links;
+    std::vector<ImageBlock> images;
 
     void Append(std::string_view value, Style style) {
         text.append(value.data(), value.size());
@@ -144,9 +154,14 @@ void AppendInline(Builder& out, std::string_view text, Style base, bool bold, bo
                 text[closeBracket + 1] == '(') {
                 const size_t closeParen = text.find(')', closeBracket + 2);
                 if (closeParen != std::string_view::npos) {
+                    const size_t start = out.text.size();
+                    const std::string_view alt = text.substr(i + 2, closeBracket - i - 2);
                     out.Append("[image: ", Style::Link);
-                    out.Append(text.substr(i + 2, closeBracket - i - 2), Style::Link);
+                    out.Append(alt.empty() ? std::string_view("image") : alt, Style::Link);
                     out.Append(']', Style::Link);
+                    out.links.push_back({start, out.text.size() - start,
+                                         std::string(text.substr(closeBracket + 2,
+                                                                 closeParen - closeBracket - 2))});
                     i = closeParen + 1;
                     continue;
                 }
@@ -162,14 +177,16 @@ void AppendInline(Builder& out, std::string_view text, Style base, bool bold, bo
                 text[closeBracket + 1] == '(') {
                 const size_t closeParen = text.find(')', closeBracket + 2);
                 if (closeParen != std::string_view::npos) {
-                    out.Append(text.substr(i + 1, closeBracket - i - 1), Style::Link);
+                    std::string_view label = text.substr(i + 1, closeBracket - i - 1);
                     const std::string_view url =
                         text.substr(closeBracket + 2, closeParen - closeBracket - 2);
-                    if (!url.empty()) {
-                        out.Append(" (", Style::Link);
-                        out.Append(url, Style::Link);
-                        out.Append(')', Style::Link);
+                    if (label.empty()) {
+                        label = url;
                     }
+                    const size_t start = out.text.size();
+                    out.Append(label, Style::Link);
+                    out.links.push_back(
+                        {start, out.text.size() - start, std::string(url)});
                     i = closeParen + 1;
                     continue;
                 }
@@ -190,6 +207,81 @@ void AppendInline(Builder& out, std::string_view text, Style base, bool bold, bo
         out.Append(ch, EmphasisStyle(base, bold, italic));
         ++i;
     }
+}
+
+bool ParseImageLine(std::string_view text, std::string_view& alt, std::string_view& url) {
+    text = Trim(text);
+    if (!StartsWith(text, "![") || text.size() < 5 || text.back() != ')') {
+        return false;
+    }
+    const size_t closeBracket = text.find(']');
+    if (closeBracket == std::string_view::npos || closeBracket + 1 >= text.size() ||
+        text[closeBracket + 1] != '(') {
+        return false;
+    }
+    alt = text.substr(2, closeBracket - 2);
+    url = text.substr(closeBracket + 2, text.size() - closeBracket - 3);
+    const size_t space = url.find(' ');
+    if (space != std::string_view::npos) {
+        url = url.substr(0, space);
+    }
+    return !url.empty();
+}
+
+bool EnsureGdiplus() {
+    static bool tried = false;
+    static bool ready = false;
+    if (!tried) {
+        tried = true;
+        Gdiplus::GdiplusStartupInput input;
+        ULONG_PTR token = 0;
+        ready = Gdiplus::GdiplusStartup(&token, &input, nullptr) == Gdiplus::Ok;
+    }
+    return ready;
+}
+
+std::wstring ResolveImagePath(std::string_view url, const std::wstring& baseDirectory) {
+    if (StartsWith(url, "http://") || StartsWith(url, "https://") ||
+        StartsWith(url, "data:")) {
+        return {};
+    }
+    std::wstring path = Utf8ToWide(std::string(url));
+    if (path.empty()) {
+        return {};
+    }
+    std::replace(path.begin(), path.end(), L'/', L'\\');
+    if ((path.size() >= 2 && path[1] == L':') ||
+        (path.size() >= 2 && path[0] == L'\\' && path[1] == L'\\') ||
+        (!path.empty() && path[0] == L'\\')) {
+        return path;
+    }
+    std::wstring root = baseDirectory;
+    if (root.empty()) {
+        wchar_t current[MAX_PATH]{};
+        if (GetCurrentDirectoryW(MAX_PATH, current) > 0) {
+            root = current;
+        }
+    }
+    if (root.empty()) {
+        return path;
+    }
+    if (root.back() != L'\\') {
+        root.push_back(L'\\');
+    }
+    return root + path;
+}
+
+bool LoadImageSize(const std::wstring& path, int& width, int& height) {
+    if (path.empty() || !EnsureGdiplus()) {
+        return false;
+    }
+    Gdiplus::Image image(path.c_str());
+    if (image.GetLastStatus() != Gdiplus::Ok) {
+        return false;
+    }
+    width = static_cast<int>(image.GetWidth());
+    height = static_cast<int>(image.GetHeight());
+    return width > 0 && height > 0;
 }
 
 bool ParseHeading(std::string_view text, int& level, std::string_view& content) {
@@ -227,15 +319,15 @@ void AppendHeading(Builder& out, std::string_view text, Style style) {
 }
 
 void AppendListPrefix(Builder& out, size_t indent, std::string_view prefix) {
-    if (indent > 0) {
-        out.Append(std::string(std::min<size_t>(indent, 12), ' '), Style::Text);
-    }
+    // Two columns of breathing room at the margin, plus source indentation.
+    const size_t columns = std::min<size_t>(indent, 12) + 2;
+    out.Append(std::string(columns, ' '), Style::Text);
     out.Append(prefix, Style::ListBullet);
 }
 
 }  // namespace
 
-Document Render(std::string_view source) {
+Document Render(std::string_view source, const RenderOptions& options) {
     Builder out;
     std::vector<std::string_view> lines;
     size_t start = 0;
@@ -269,13 +361,16 @@ Document Render(std::string_view source) {
         if (inCode) {
             if (IsFence(trimmed)) {
                 inCode = false;
+                out.Newline();
             } else {
+                out.Append("  ", Style::CodeBlock);
                 out.Append(TrimRight(rawLine), Style::CodeBlock);
                 out.Newline(Style::CodeBlock);
             }
             continue;
         }
         if (IsFence(trimmed)) {
+            out.Newline();
             inCode = true;
             continue;
         }
@@ -305,6 +400,46 @@ Document Render(std::string_view source) {
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
                        Style::Rule);
             out.Newline(Style::Rule);
+            continue;
+        }
+
+        std::string_view imageAlt;
+        std::string_view imageUrl;
+        if (ParseImageLine(trimmed, imageAlt, imageUrl)) {
+            const std::wstring path = ResolveImagePath(imageUrl, options.baseDirectory);
+            int imageWidth = 0;
+            int imageHeight = 0;
+            if (!path.empty() && LoadImageSize(path, imageWidth, imageHeight)) {
+                const int maxWidth = std::max(100, options.maxImageWidth);
+                const int maxHeight = std::max(100, options.lineHeight * 40);
+                if (imageWidth > maxWidth) {
+                    imageHeight = std::max(1, imageHeight * maxWidth / imageWidth);
+                    imageWidth = maxWidth;
+                }
+                if (imageHeight > maxHeight) {
+                    imageWidth = std::max(1, imageWidth * maxHeight / imageHeight);
+                    imageHeight = maxHeight;
+                }
+                const int lineHeight = std::max(1, options.lineHeight);
+                const int reservedLines =
+                    std::max(1, (imageHeight + lineHeight - 1) / lineHeight) + 1;
+                const size_t position = out.text.size();
+                out.Append(" ", Style::Text);
+                out.Newline();
+                for (int line = 1; line < reservedLines; ++line) {
+                    out.Newline();
+                }
+                out.images.push_back({position, path, imageWidth, imageHeight});
+                continue;
+            }
+
+            const size_t linkStart = out.text.size();
+            out.Append("[image: ", Style::Link);
+            out.Append(imageAlt.empty() ? std::string_view("image") : imageAlt, Style::Link);
+            out.Append(']', Style::Link);
+            out.links.push_back(
+                {linkStart, out.text.size() - linkStart, std::string(imageUrl)});
+            out.Newline();
             continue;
         }
 
@@ -355,7 +490,8 @@ Document Render(std::string_view source) {
         out.Newline();
     }
 
-    return {std::move(out.text), std::move(out.styles)};
+    return {std::move(out.text), std::move(out.styles), std::move(out.links),
+            std::move(out.images)};
 }
 
 namespace {
@@ -374,13 +510,106 @@ void SetStyle(HWND sci, int style, COLORREF fore, COLORREF back, int size, bool 
     S(sci, SCI_STYLESETUNDERLINE, style, underline ? TRUE : FALSE);
 }
 
+struct PreviewImage {
+    sptr_t position = 0;
+    int width = 0;
+    int height = 0;
+    std::unique_ptr<Gdiplus::Image> image;
+};
+
+struct PreviewState {
+    std::vector<PreviewImage> images;
+};
+
+std::unordered_map<HWND, PreviewState*> g_previewStates;
+constexpr UINT_PTR kPreviewSubclass = 0x4D44;
+
+void DrawPreviewImages(HWND hwnd) {
+    const auto found = g_previewStates.find(hwnd);
+    if (found == g_previewStates.end() || found->second->images.empty()) {
+        return;
+    }
+    HDC dc = GetDC(hwnd);
+    if (!dc) {
+        return;
+    }
+    Gdiplus::Graphics graphics(dc);
+    graphics.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
+    graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+    for (const PreviewImage& item : found->second->images) {
+        const int y = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(item.position), 0));
+        const int x = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTXFROMPOSITION, static_cast<WPARAM>(item.position), 0));
+        if (item.image) {
+            graphics.DrawImage(item.image.get(), x, y, item.width, item.height);
+        }
+    }
+    ReleaseDC(hwnd, dc);
+}
+
+LRESULT CALLBACK PreviewSubclassProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam,
+                                     UINT_PTR, DWORD_PTR) {
+    if (message == WM_NCDESTROY) {
+        const auto found = g_previewStates.find(hwnd);
+        if (found != g_previewStates.end()) {
+            delete found->second;
+            g_previewStates.erase(found);
+        }
+    }
+    const LRESULT result = DefSubclassProc(hwnd, message, wParam, lParam);
+    if (message == WM_PAINT) {
+        DrawPreviewImages(hwnd);
+    } else if (message == WM_VSCROLL || message == WM_HSCROLL ||
+               message == WM_MOUSEWHEEL || message == WM_KEYDOWN) {
+        InvalidateRect(hwnd, nullptr, FALSE);
+    } else if (message == WM_NCDESTROY) {
+        RemoveWindowSubclass(hwnd, PreviewSubclassProc, kPreviewSubclass);
+    }
+    return result;
+}
+
+void UpdatePreviewImages(HWND sci, const std::vector<ImageBlock>& blocks) {
+    auto found = g_previewStates.find(sci);
+    if (found == g_previewStates.end()) {
+        SetWindowSubclass(sci, PreviewSubclassProc, kPreviewSubclass, 0);
+        found = g_previewStates.emplace(sci, new PreviewState()).first;
+    }
+    PreviewState& state = *found->second;
+    state.images.clear();
+    if (!EnsureGdiplus()) {
+        return;
+    }
+    for (const ImageBlock& block : blocks) {
+        auto image = std::make_unique<Gdiplus::Image>(block.path.c_str());
+        if (image->GetLastStatus() != Gdiplus::Ok) {
+            continue;
+        }
+        state.images.push_back({static_cast<sptr_t>(block.position), block.width,
+                                block.height, std::move(image)});
+    }
+    InvalidateRect(sci, nullptr, FALSE);
+}
+
 }  // namespace
 
-void RenderToScintilla(HWND sci, std::string_view source) {
+void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* links,
+                       const std::wstring& baseDirectory) {
     if (!sci) {
         return;
     }
-    const Document document = Render(source);
+    RECT client{};
+    GetClientRect(sci, &client);
+    RenderOptions options;
+    const int padding = theme::Scale(24, theme::DpiOf(sci));
+    options.maxImageWidth = std::max(100, static_cast<int>(client.right) - padding * 2);
+    options.lineHeight =
+        std::max(1, static_cast<int>(S(sci, SCI_TEXTHEIGHT, 0, 0)));
+    options.baseDirectory = baseDirectory;
+    const Document document = Render(source, options);
+    if (links) {
+        *links = document.links;
+    }
     const sptr_t top = S(sci, SCI_GETFIRSTVISIBLELINE);
     const bool wasReadOnly = S(sci, SCI_GETREADONLY) != 0;
     if (wasReadOnly) {
@@ -408,12 +637,19 @@ void RenderToScintilla(HWND sci, std::string_view source) {
     style(Style::Bold, theme::kText, theme::kBg, 0, true, false);
     style(Style::Italic, theme::kText, theme::kBg, 0, false, true);
     style(Style::BoldItalic, theme::kText, theme::kBg, 0, true, true);
-    style(Style::Code, theme::kSyntaxString, theme::kPanelAlt, -1, false, false);
-    style(Style::CodeBlock, theme::kSyntaxString, theme::kPanelAlt, 0, false, false);
+    style(Style::Code, theme::kText, theme::kPanelAlt, -1, false, false);
+    style(Style::CodeBlock, theme::kText, theme::kPanelAlt, 0, false, false);
     style(Style::Link, theme::kSyntaxLink, theme::kBg, 0, false, false, true);
     style(Style::Quote, theme::kSyntaxComment, theme::kBg, 0, false, true);
     style(Style::ListBullet, theme::kSyntaxKeyword, theme::kBg, 0, true, false);
     style(Style::Rule, theme::kTextFaint, theme::kBg, 0, false, false);
+    const std::string codeFont = "Consolas";
+    S(sci, SCI_STYLESETFONT, static_cast<int>(Style::Code),
+      reinterpret_cast<sptr_t>(codeFont.c_str()));
+    S(sci, SCI_STYLESETFONT, static_cast<int>(Style::CodeBlock),
+      reinterpret_cast<sptr_t>(codeFont.c_str()));
+    S(sci, SCI_STYLESETHOTSPOT, static_cast<int>(Style::Link), TRUE);
+    S(sci, SCI_STYLESETEOLFILLED, static_cast<int>(Style::CodeBlock), TRUE);
 
     S(sci, SCI_SETREADONLY, FALSE);
     S(sci, SCI_SETUNDOCOLLECTION, FALSE);
@@ -429,12 +665,17 @@ void RenderToScintilla(HWND sci, std::string_view source) {
     }
     S(sci, SCI_EMPTYUNDOBUFFER);
     S(sci, SCI_SETREADONLY, TRUE);
-    S(sci, SCI_SETMARGINWIDTHN, 0, 0);
+    S(sci, SCI_SETMARGINTYPEN, 0, SC_MARGIN_BACK);
+    S(sci, SCI_SETMARGINWIDTHN, 0, padding);
+    S(sci, SCI_SETMARGINBACKN, 0, theme::kBg);
+    S(sci, SCI_SETMARGINSENSITIVEN, 0, FALSE);
+    S(sci, SCI_SETMARGINRIGHT, static_cast<uptr_t>(padding));
     S(sci, SCI_SETWRAPMODE, SC_WRAP_WORD);
     S(sci, SCI_SETCARETSTYLE, CARETSTYLE_INVISIBLE);
     S(sci, SCI_SETCARETLINEVISIBLE, FALSE);
     S(sci, SCI_SETHSCROLLBAR, FALSE);
     S(sci, SCI_GOTOPOS, 0);
+    UpdatePreviewImages(sci, document.images);
     const sptr_t lineCount = std::max<sptr_t>(1, S(sci, SCI_GETLINECOUNT));
     S(sci, SCI_SETFIRSTVISIBLELINE,
       static_cast<uptr_t>(std::min<sptr_t>(std::max<sptr_t>(0, top), lineCount - 1)));

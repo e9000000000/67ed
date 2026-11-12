@@ -9,6 +9,7 @@
 #include "findbar.h"
 #include "filewatch.h"
 #include "linebar.h"
+#include "markdown.h"
 #include "menubar.h"
 #include "session.h"
 #include "settings.h"
@@ -20,6 +21,7 @@
 struct Tab {
     HWND sci = nullptr;
     HWND previewControl = nullptr;
+    std::vector<markdown::Link> previewLinks;
     std::wstring id;
     std::wstring path;
     std::wstring displayName;
@@ -30,6 +32,7 @@ struct Tab {
     bool readOnly = false;
     bool dirty = false;
     bool preview = false;
+    int previewWidth = 0;
     syntax::Language language = syntax::Language::Plain;
     Encoding encoding = Encoding::Utf8;
     bool bom = false;
@@ -86,6 +89,7 @@ private:
 
     int activeIndex() const { return active_; }
     Tab* activeTab();
+    Tab* tabFromPreview(HWND hwnd);
     HWND activeControl();
     Tab* tabFromSci(HWND sci);
     int indexOfTab(const Tab* tab) const;

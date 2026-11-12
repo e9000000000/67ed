@@ -954,7 +954,7 @@ void TestSyntax(TestLog& log) {
     DestroyWindow(host);
 }
 
-void TestMarkdown(TestLog& log) {
+void TestMarkdown(TestLog& log, const fs::path& dir) {
     const std::string source = R"MD(# Title
 
 This is **bold** and *italic* and `code`.
@@ -986,7 +986,7 @@ int x = 1;
                   doc.text.find("```") == std::string::npos &&
                   doc.text.find("\u2022 item one") != std::string::npos &&
                   doc.text.find("\u2502 quote") != std::string::npos &&
-                  doc.text.find("site (https://example.com)") != std::string::npos,
+                  doc.text.find("site") != std::string::npos,
               "markdown.text");
     log.check(styleOf("Title") == static_cast<int>(markdown::Style::H1) &&
                   styleOf("bold") == static_cast<int>(markdown::Style::Bold) &&
@@ -998,6 +998,26 @@ int x = 1;
                   styleOf("site") == static_cast<int>(markdown::Style::Link) &&
                   styleOf("\u2500") == static_cast<int>(markdown::Style::Rule),
               "markdown.blocks");
+    log.check(doc.links.size() == 1 && doc.links[0].url == "https://example.com" &&
+                  doc.links[0].start + doc.links[0].length <= doc.text.size() &&
+                  doc.text.substr(doc.links[0].start, doc.links[0].length) == "site",
+              "markdown.links");
+
+    static const char pixelPngBytes[] =
+        "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+        "\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\xda" "c\xfc\xcf\xc0P"
+        "\x0f\x00\x05\x83\x02\x7f\x94\xad\xd0\xeb\x00\x00\x00\x00IEND\xae" "B\x60\x82";
+    const std::string pixelPng(pixelPngBytes, sizeof(pixelPngBytes) - 1);
+    const fs::path pixelPath = dir / "pixel.png";
+    log.check(WriteBytes(pixelPath, pixelPng), "markdown.image.write");
+    markdown::RenderOptions imageOptions;
+    imageOptions.baseDirectory = dir.wstring();
+    imageOptions.maxImageWidth = 200;
+    imageOptions.lineHeight = 20;
+    const markdown::Document imageDoc = markdown::Render("![x](pixel.png)\n", imageOptions);
+    log.check(imageDoc.images.size() == 1 && imageDoc.images[0].width == 1 &&
+                  imageDoc.images[0].height == 1,
+              "markdown.image.block");
 
     HWND host = CreateHost();
     log.check(host != nullptr, "markdown.host");
@@ -1013,6 +1033,10 @@ int x = 1;
                           static_cast<LRESULT>(markdown::Style::H1) &&
                       SendMessageW(sci, SCI_GETREADONLY, 0, 0) != 0,
                   "markdown.scintilla");
+        SetWindowPos(sci, nullptr, 0, 0, 700, 500, SWP_NOZORDER | SWP_NOACTIVATE);
+        markdown::RenderToScintilla(sci, "![x](pixel.png)\n", nullptr, dir.wstring());
+        log.check(SendMessageW(sci, SCI_GETLINECOUNT, 0, 0) >= 2,
+                  "markdown.image.preview");
         DestroyWindow(sci);
     }
     DestroyWindow(host);
@@ -1238,7 +1262,7 @@ int RunSelfTest(const std::wstring& logPath) {
     TestSettings(log, dir);
     TestScintilla(log, dir);
     TestSyntax(log);
-    TestMarkdown(log);
+    TestMarkdown(log, dir);
     TestEditingCommands(log);
     TestTabOrder(log);
 

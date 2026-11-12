@@ -47,7 +47,8 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Syntax highlighting detected from the filename, with a View toggle; large files
   stay plain text to protect scrolling and opening speed
 - Native Markdown preview: Ctrl+Shift+M renders headings, emphasis, code, lists,
-  quotes, links, and rules in a read-only styled view
+  quotes, rules, local block images, and clickable http/https/mailto links in a
+  read-only styled view with margins
 - Line editing: Ctrl+X / Ctrl+C on an empty selection use the current line;
   Ctrl+L selects and extends line selections; Alt+Up/Down moves lines
 - Multi-cursor: Ctrl+D selects the word and adds the next occurrence, with
@@ -71,7 +72,7 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
-- Headless `--selftest` (249 checks) and `--bench` modes; no windows are shown
+- Headless `--selftest` (253 checks) and `--bench` modes; no windows are shown
 - 100 MB class files: no-wrap large-file mode, measured 249 ms open / 205 ms save,
   218 MB RSS after save (`docs/PERF.md`)
 

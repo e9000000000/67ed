@@ -91,9 +91,17 @@ Scintilla supplies most of the editing behaviour directly:
   links, images, and paragraphs) and inline markers (`**bold**`, `*italic*`,
   `` `code` ``, links). It returns UTF-8 text plus a style byte per output byte.
 - `RenderToScintilla` applies a preview style set (headings in larger bold text,
-  inline code with a panel background, underlined links, quote/list colours) and
-  loads the result into a read-only Scintilla control with wrapping, no margin,
-  and an invisible caret.
+  Consolas code with a panel background, underlined links, quote/list colours)
+  and loads the result into a read-only Scintilla control with wrapping, 24-DIP
+  left/right padding, and an invisible caret.
+- Link ranges travel with the rendered document; the app marks the link style as
+  a hotspot and opens only `http://`, `https://`, and `mailto:` URLs through
+  `ShellExecuteW`. The URL is not printed after the label.
+- Standalone local images are decoded with GDI+ at render time. Each reserves
+  layout lines in the Scintilla document, and a preview subclass paints the
+  decoded image after Scintilla paints, using Scintilla position-to-pixel
+  mapping so images scroll and wrap with the text. Remote images stay clickable
+  `[image: alt]` placeholders; there is no network access.
 - Each tab owns an optional preview HWND created on first use. Ctrl+Shift+M
   toggles `tab.preview`; only the active control is shown, and the source buffer
   is never replaced. The source stays authoritative for saving, dirty state,
@@ -277,7 +285,7 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 249 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 253 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit

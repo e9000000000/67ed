@@ -26,8 +26,8 @@ corrupt-session backup, recent-label formatting, find/line bar state, tab-bar hi
 testing, status-bar drag area, editor setting application, settings
 round-trip/clamping/backup, syntax language detection and style application, and
 crash-log writing, line selection/moves, multi-cursor state, occurrence
-indicators across selections, and Markdown rendering. Expected final line:
-`summary passed=249 failed=0`.
+indicators across selections, and Markdown rendering (including local image
+blocks). Expected final line: `summary passed=253 failed=0`.
 
 File-dialog dark theming is applied by an `OPENFILENAME` hook; it is compiled and
 reviewed but not covered by headless tests (it requires a visible dialog).
@@ -115,7 +115,8 @@ highlighted with a blue fill. Hold Win and drag anywhere to move the window.
 
 Markdown preview: open a `.md` file, press Ctrl+Shift+M (or View → Markdown
 Preview) to switch to the styled read-only view; press it again to return to the
-source. Editing is done in the source view.
+source. Links are clickable, and relative local images on their own line are
+rendered. Editing is done in the source view.
 
 Default editor: burger File → Set as Default Text Editor registers 67ed per user
 and opens Windows Default Apps. With `UserChoice` protected by Windows, confirm

@@ -928,6 +928,10 @@ void App::layout() {
             if (showPreview) {
                 ShowWindow(tab.previewControl, SW_SHOW);
                 editor::SyncScrollBars(tab.previewControl);
+                if (tab.previewWidth != width) {
+                    tab.previewWidth = width;
+                    refreshPreview(tab);
+                }
             } else {
                 ShowWindow(tab.previewControl, SW_HIDE);
             }
@@ -1043,6 +1047,15 @@ HWND App::activeControl() {
 Tab* App::tabFromSci(HWND sci) {
     for (auto& tab : tabs_) {
         if (tab->sci == sci) {
+            return tab.get();
+        }
+    }
+    return nullptr;
+}
+
+Tab* App::tabFromPreview(HWND hwnd) {
+    for (auto& tab : tabs_) {
+        if (tab->previewControl == hwnd) {
             return tab.get();
         }
     }
@@ -2028,7 +2041,10 @@ void App::refreshPreview(Tab& tab) {
     if (!tab.previewControl || !tab.loaded || !tab.sci) {
         return;
     }
-    markdown::RenderToScintilla(tab.previewControl, editor::GetText(tab.sci));
+    const std::wstring baseDirectory =
+        tab.path.empty() ? std::wstring() : DirectoryOf(tab.path);
+    markdown::RenderToScintilla(tab.previewControl, editor::GetText(tab.sci),
+                                &tab.previewLinks, baseDirectory);
 }
 
 void App::toggleMarkdownPreview() {
@@ -2054,10 +2070,10 @@ void App::toggleMarkdownPreview() {
             ShowError(hwnd_, L"Cannot create the Markdown preview control.");
             return;
         }
-        refreshPreview(*tab);
         tab->preview = true;
-        setStatusMessage(L"Markdown preview");
         layout();
+        refreshPreview(*tab);
+        setStatusMessage(L"Markdown preview");
         updateStatus();
         updateTitle();
         SetFocus(tab->previewControl);
@@ -2106,6 +2122,25 @@ void App::handleScintillaNotify(LPARAM lParam) {
     }
     Tab* tab = tabFromSci(header->hwndFrom);
     if (!tab) {
+        tab = tabFromPreview(header->hwndFrom);
+        if (tab && header->code == SCN_HOTSPOTCLICK) {
+            auto* notification = reinterpret_cast<SCNotification*>(lParam);
+            const long long position = notification->position;
+            for (const auto& link : tab->previewLinks) {
+                if (position < static_cast<long long>(link.start) ||
+                    position >= static_cast<long long>(link.start + link.length)) {
+                    continue;
+                }
+                const std::wstring url = Utf8ToWide(link.url);
+                const std::wstring lower = ToLower(url);
+                if (lower.rfind(L"http://", 0) == 0 || lower.rfind(L"https://", 0) == 0 ||
+                    lower.rfind(L"mailto:", 0) == 0) {
+                    ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr,
+                                  SW_SHOWNORMAL);
+                }
+                break;
+            }
+        }
         return;
     }
     switch (header->code) {
