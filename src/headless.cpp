@@ -997,6 +997,19 @@ void TestEditingCommands(TestLog& log) {
     log.check(SendMessageW(sci, SCI_GETSELECTIONS, 0, 0) == 3,
               "editing.multicursor.count");
 
+    editor::SetText(sci, "foo bar foo foo\n");
+    SendMessageW(sci, SCI_SETSEL, 0, 3);
+    editor::HighlightOccurrences(sci);
+    log.check(SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 8) != 0 &&
+                  SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 12) != 0 &&
+                  SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 0) == 0 &&
+                  SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 4) == 0,
+              "editing.occurrences.highlight");
+    SendMessageW(sci, SCI_GOTOPOS, 1, 0);
+    editor::HighlightOccurrences(sci);
+    log.check(SendMessageW(sci, SCI_INDICATORVALUEAT, 0, 8) == 0,
+              "editing.occurrences.clear");
+
     DestroyWindow(sci);
     DestroyWindow(host);
 }

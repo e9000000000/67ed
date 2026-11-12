@@ -21,6 +21,8 @@ void SetLineNumbers(HWND sci, bool show);
 // Selects the current line, extending the previous line selection when called
 // repeatedly (Ctrl+L behaviour).
 void SelectLine(HWND sci);
+// Highlights other occurrences of a non-empty single-line selection.
+void HighlightOccurrences(HWND sci);
 // Restores margin/brace styles after a lexer call to SCI_STYLECLEARALL.
 void RefreshChromeStyles(HWND sci);
 // Recomputes the native scrollbar after a hidden control is shown.

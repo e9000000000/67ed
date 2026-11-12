@@ -15,6 +15,9 @@ namespace editor {
 
 namespace {
 
+constexpr int kOccurrenceIndicator = 0;
+constexpr int kMaxOccurrences = 1000;
+
 sptr_t S(HWND sci, unsigned int message, uptr_t wParam = 0, sptr_t lParam = 0) {
     return SendMessageW(sci, message, wParam, lParam);
 }
@@ -54,6 +57,13 @@ void ApplyThemeColors(HWND sci) {
     S(sci, SCI_SETMARGINWIDTHN, 3, 0);
     S(sci, SCI_SETMARGINWIDTHN, 4, 0);
     S(sci, SCI_SETMARGINSENSITIVEN, 0, FALSE);
+
+    S(sci, SCI_INDICSETSTYLE, kOccurrenceIndicator, INDIC_FULLBOX);
+    S(sci, SCI_INDICSETFORE, kOccurrenceIndicator, theme::kAccent);
+    S(sci, SCI_INDICSETALPHA, kOccurrenceIndicator, 55);
+    S(sci, SCI_INDICSETOUTLINEALPHA, kOccurrenceIndicator, 0);
+    S(sci, SCI_INDICSETUNDER, kOccurrenceIndicator, TRUE);
+    S(sci, SCI_INDICSETSTROKEWIDTH, kOccurrenceIndicator, 1);
 }
 
 }  // namespace
@@ -246,6 +256,85 @@ void SelectLine(HWND sci) {
         S(sci, SCI_POSITIONFROMLINE, S(sci, SCI_LINEFROMPOSITION, selStart)) == selStart;
     const sptr_t start = extending ? selStart : lineStart;
     S(sci, SCI_SETSEL, static_cast<uptr_t>(start), static_cast<sptr_t>(nextStart));
+}
+
+void HighlightOccurrences(HWND sci) {
+    if (!sci) {
+        return;
+    }
+    const sptr_t length = S(sci, SCI_GETLENGTH);
+    S(sci, SCI_SETINDICATORCURRENT, kOccurrenceIndicator);
+    S(sci, SCI_INDICATORCLEARRANGE, 0, length);
+    if (S(sci, SCI_GETSELECTIONS) != 1) {
+        return;
+    }
+
+    const sptr_t selStart = S(sci, SCI_GETSELECTIONSTART);
+    const sptr_t selEnd = S(sci, SCI_GETSELECTIONEND);
+    const sptr_t selLength = selEnd - selStart;
+    if (selLength <= 0 || selLength > 200) {
+        return;
+    }
+
+    std::string needle(static_cast<size_t>(selLength) + 1, '\0');
+    const sptr_t copied =
+        S(sci, SCI_GETSELTEXT, 0, reinterpret_cast<sptr_t>(needle.data()));
+    if (copied <= 0) {
+        return;
+    }
+    needle.resize(static_cast<size_t>(copied));
+    bool hasContent = false;
+    for (const unsigned char ch : needle) {
+        if (ch == '\r' || ch == '\n' || ch == '\0') {
+            return;
+        }
+        if (ch != ' ' && ch != '\t') {
+            hasContent = true;
+        }
+    }
+    if (!hasContent) {
+        return;
+    }
+
+    // Search a window around the viewport: enough for visible context without
+    // rescanning a 100 MB document on every scroll.
+    const sptr_t lineCount = std::max<sptr_t>(1, S(sci, SCI_GETLINECOUNT));
+    const sptr_t first = std::max<sptr_t>(0, S(sci, SCI_GETFIRSTVISIBLELINE) - 200);
+    const sptr_t last = std::min(lineCount - 1, first + S(sci, SCI_LINESONSCREEN) + 400);
+    const sptr_t searchStart = S(sci, SCI_POSITIONFROMLINE, first);
+    const sptr_t searchEnd =
+        last + 1 < lineCount ? S(sci, SCI_POSITIONFROMLINE, last + 1) : length;
+    if (searchEnd <= searchStart) {
+        return;
+    }
+
+    const sptr_t oldTargetStart = S(sci, SCI_GETTARGETSTART);
+    const sptr_t oldTargetEnd = S(sci, SCI_GETTARGETEND);
+    const sptr_t oldFlags = S(sci, SCI_GETSEARCHFLAGS);
+    S(sci, SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE);
+
+    sptr_t search = searchStart;
+    int foundCount = 0;
+    while (search < searchEnd && foundCount < kMaxOccurrences) {
+        S(sci, SCI_SETTARGETSTART, static_cast<uptr_t>(search));
+        S(sci, SCI_SETTARGETEND, static_cast<sptr_t>(searchEnd));
+        const sptr_t found = S(sci, SCI_SEARCHINTARGET, static_cast<uptr_t>(needle.size()),
+                               reinterpret_cast<sptr_t>(needle.c_str()));
+        if (found < 0) {
+            break;
+        }
+        const sptr_t foundEnd = found + static_cast<sptr_t>(needle.size());
+        if (found >= selEnd || foundEnd <= selStart) {
+            S(sci, SCI_INDICATORFILLRANGE, static_cast<uptr_t>(found),
+              static_cast<sptr_t>(needle.size()));
+            ++foundCount;
+        }
+        search = std::max(foundEnd, found + 1);
+    }
+
+    S(sci, SCI_SETTARGETSTART, static_cast<uptr_t>(oldTargetStart));
+    S(sci, SCI_SETTARGETEND, static_cast<sptr_t>(oldTargetEnd));
+    S(sci, SCI_SETSEARCHFLAGS, static_cast<uptr_t>(oldFlags));
 }
 
 void SetEol(HWND sci, EolMode eol) {

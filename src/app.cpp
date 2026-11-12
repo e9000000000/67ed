@@ -1282,6 +1282,7 @@ void App::selectTab(int index) {
     updateTabBar();
     updateStatus();
     updateTitle();
+    editor::HighlightOccurrences(tabs_[index]->sci);
     editor::Focus(tabs_[index]->sci);
     markSessionDirty();
 }
@@ -1946,9 +1947,16 @@ void App::handleScintillaNotify(LPARAM lParam) {
         return;
     }
     switch (header->code) {
-    case SCN_UPDATEUI:
+    case SCN_UPDATEUI: {
+        auto* notification = reinterpret_cast<SCNotification*>(lParam);
+        const int changed = notification->updated & (SC_UPDATE_SELECTION | SC_UPDATE_V_SCROLL |
+                                                      SC_UPDATE_H_SCROLL);
+        if (changed != 0) {
+            editor::HighlightOccurrences(tab->sci);
+        }
         updateStatus();
         break;
+    }
     case SCN_MODIFIED: {
         auto* notification = reinterpret_cast<SCNotification*>(lParam);
         if (notification->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT)) {

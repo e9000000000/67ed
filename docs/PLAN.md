@@ -104,7 +104,8 @@ encoding matrix round-trips byte-for-byte when unedited.
 - High-DPI pass (125/150/200%), dark native-ish dialogs, scrollbar theming.
 - Crash log, per-user default-editor registration, portable mode.
 - Lexilla syntax highlighting for code, markup, and data formats.
-- Line editing shortcuts, multi-cursor, and Win-key window dragging.
+- Line editing shortcuts, multi-cursor, occurrence highlighting, and Win-key
+  window dragging.
 - Bench suite and unit tests wired into the build.
 - Final size/startup budget check.
 

@@ -75,6 +75,11 @@ Scintilla supplies most of the editing behaviour directly:
 - While either Win key is held, all custom child controls and Scintilla return
   `HTTRANSPARENT` from `WM_NCHITTEST`. The main window then returns `HTCAPTION` for
   its client area, so a drag from anywhere moves the window.
+- With one non-empty single-line selection (up to 200 bytes), `SCN_UPDATEUI`
+  calls `editor::HighlightOccurrences`. It clears indicator 0, searches a window
+  around the viewport with `SCFIND_MATCHCASE`, and fills `INDIC_FULLBOX` ranges
+  for the other matches. Scrolling refreshes the window, so huge files stay
+  responsive.
 
 ## UI layout
 
@@ -250,7 +255,7 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 238 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 240 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit

@@ -50,6 +50,7 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
   Ctrl+L selects and extends line selections; Alt+Up/Down moves lines
 - Multi-cursor: Ctrl+D selects the word and adds the next occurrence, with
   additional typing, pasting, and selections
+- Selecting text highlights its other visible occurrences with a subtle blue fill
 - Find and replace bar: Ctrl+F / Ctrl+H, F3 / Shift+F3, match case, whole word,
   regex with capture groups, Replace, Replace All
 - Go to line: Ctrl+G
@@ -68,7 +69,7 @@ Workflow: [`.github/workflows/build.yml`](.github/workflows/build.yml).
 - Crash recovery: dirty buffers are snapshotted; a killed process reopens them
   marked `(recovered) *`
 - UTF-8/UTF-16/ANSI detection, BOM/EOL preservation, atomic save
-- Headless `--selftest` (238 checks) and `--bench` modes; no windows are shown
+- Headless `--selftest` (240 checks) and `--bench` modes; no windows are shown
 - 100 MB class files: no-wrap large-file mode, measured 249 ms open / 205 ms save,
   218 MB RSS after save (`docs/PERF.md`)
 
