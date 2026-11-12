@@ -68,6 +68,7 @@ struct Builder {
     std::vector<unsigned char> styles;
     std::vector<Link> links;
     std::vector<ImageBlock> images;
+    std::vector<CodeBlock> codeBlocks;
 
     void Append(std::string_view value, Style style) {
         text.append(value.data(), value.size());
@@ -354,6 +355,7 @@ Document Render(std::string_view source, const RenderOptions& options) {
     }
 
     bool inCode = false;
+    size_t codeStart = 0;
     for (; index < lines.size(); ++index) {
         const std::string_view rawLine = lines[index];
         const std::string_view trimmed = Trim(rawLine);
@@ -361,6 +363,9 @@ Document Render(std::string_view source, const RenderOptions& options) {
         if (inCode) {
             if (IsFence(trimmed)) {
                 inCode = false;
+                out.Append(" ", Style::CodePad);
+                out.Newline(Style::CodePad);
+                out.codeBlocks.push_back({codeStart, out.text.size()});
                 out.Newline();
             } else {
                 out.Append("  ", Style::CodeBlock);
@@ -371,6 +376,9 @@ Document Render(std::string_view source, const RenderOptions& options) {
         }
         if (IsFence(trimmed)) {
             out.Newline();
+            codeStart = out.text.size();
+            out.Append(" ", Style::CodePad);
+            out.Newline(Style::CodePad);
             inCode = true;
             continue;
         }
@@ -490,8 +498,14 @@ Document Render(std::string_view source, const RenderOptions& options) {
         out.Newline();
     }
 
+    if (inCode) {
+        out.Append(" ", Style::CodePad);
+        out.Newline(Style::CodePad);
+        out.codeBlocks.push_back({codeStart, out.text.size()});
+    }
+
     return {std::move(out.text), std::move(out.styles), std::move(out.links),
-            std::move(out.images)};
+            std::move(out.images), std::move(out.codeBlocks)};
 }
 
 namespace {
@@ -519,14 +533,75 @@ struct PreviewImage {
 
 struct PreviewState {
     std::vector<PreviewImage> images;
+    std::vector<CodeBlock> codeBlocks;
 };
 
 std::unordered_map<HWND, PreviewState*> g_previewStates;
 constexpr UINT_PTR kPreviewSubclass = 0x4D44;
 
-void DrawPreviewImages(HWND hwnd) {
+Gdiplus::Color GdiColor(COLORREF color) {
+    return Gdiplus::Color(255, GetRValue(color), GetGValue(color), GetBValue(color));
+}
+
+void AddRoundedRect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, float radius) {
+    const float r = std::min(radius, std::min(rect.Width, rect.Height) / 2.0f);
+    if (r <= 0.0f) {
+        path.AddRectangle(rect);
+        return;
+    }
+    const float d = r * 2.0f;
+    path.AddArc(rect.X, rect.Y, d, d, 180.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y, d, d, 270.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y + rect.Height - d, d, d, 0.0f, 90.0f);
+    path.AddArc(rect.X, rect.Y + rect.Height - d, d, d, 90.0f, 90.0f);
+    path.CloseFigure();
+}
+
+void DrawCodeBlockDecorations(Gdiplus::Graphics& graphics, HWND hwnd,
+                              const PreviewState& state) {
+    if (state.codeBlocks.empty()) {
+        return;
+    }
+    RECT client{};
+    GetClientRect(hwnd, &client);
+    const int left = static_cast<int>(SendMessageW(hwnd, SCI_GETMARGINWIDTHN, 0, 0));
+    const int right =
+        client.right - static_cast<int>(SendMessageW(hwnd, SCI_GETMARGINRIGHT, 0, 0));
+    if (right <= left) {
+        return;
+    }
+    const float radius = static_cast<float>(theme::Scale(6, theme::DpiOf(hwnd)));
+    Gdiplus::SolidBrush page(GdiColor(theme::kBg));
+    Gdiplus::Pen border(GdiColor(theme::kBorder), 1.0f);
+    for (const CodeBlock& block : state.codeBlocks) {
+        const int top = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(block.start), 0));
+        const int bottom = static_cast<int>(
+            SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(block.end), 0));
+        if (bottom <= top || bottom < 0 || top > client.bottom) {
+            continue;
+        }
+        const Gdiplus::RectF rect(static_cast<float>(left), static_cast<float>(top),
+                                  static_cast<float>(right - left),
+                                  static_cast<float>(bottom - top));
+        Gdiplus::GraphicsPath rounded;
+        AddRoundedRect(rounded, rect, radius);
+        Gdiplus::GraphicsPath mask;
+        mask.SetFillMode(Gdiplus::FillModeAlternate);
+        mask.AddRectangle(rect);
+        mask.AddPath(&rounded, FALSE);
+        graphics.FillPath(&page, &mask);
+        graphics.DrawPath(&border, &rounded);
+    }
+}
+
+void DrawPreviewDecorations(HWND hwnd) {
     const auto found = g_previewStates.find(hwnd);
-    if (found == g_previewStates.end() || found->second->images.empty()) {
+    if (found == g_previewStates.end()) {
+        return;
+    }
+    PreviewState& state = *found->second;
+    if (state.images.empty() && state.codeBlocks.empty()) {
         return;
     }
     HDC dc = GetDC(hwnd);
@@ -535,8 +610,12 @@ void DrawPreviewImages(HWND hwnd) {
     }
     Gdiplus::Graphics graphics(dc);
     graphics.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
+    graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
-    for (const PreviewImage& item : found->second->images) {
+
+    DrawCodeBlockDecorations(graphics, hwnd, state);
+
+    for (const PreviewImage& item : state.images) {
         const int y = static_cast<int>(
             SendMessageW(hwnd, SCI_POINTYFROMPOSITION, static_cast<WPARAM>(item.position), 0));
         const int x = static_cast<int>(
@@ -559,7 +638,7 @@ LRESULT CALLBACK PreviewSubclassProc(HWND hwnd, UINT message, WPARAM wParam, LPA
     }
     const LRESULT result = DefSubclassProc(hwnd, message, wParam, lParam);
     if (message == WM_PAINT) {
-        DrawPreviewImages(hwnd);
+        DrawPreviewDecorations(hwnd);
     } else if (message == WM_VSCROLL || message == WM_HSCROLL ||
                message == WM_MOUSEWHEEL || message == WM_KEYDOWN) {
         InvalidateRect(hwnd, nullptr, FALSE);
@@ -569,7 +648,8 @@ LRESULT CALLBACK PreviewSubclassProc(HWND hwnd, UINT message, WPARAM wParam, LPA
     return result;
 }
 
-void UpdatePreviewImages(HWND sci, const std::vector<ImageBlock>& blocks) {
+void UpdatePreviewData(HWND sci, const std::vector<ImageBlock>& blocks,
+                       const std::vector<CodeBlock>& codeBlocks) {
     auto found = g_previewStates.find(sci);
     if (found == g_previewStates.end()) {
         SetWindowSubclass(sci, PreviewSubclassProc, kPreviewSubclass, 0);
@@ -577,6 +657,7 @@ void UpdatePreviewImages(HWND sci, const std::vector<ImageBlock>& blocks) {
     }
     PreviewState& state = *found->second;
     state.images.clear();
+    state.codeBlocks = codeBlocks;
     if (!EnsureGdiplus()) {
         return;
     }
@@ -594,19 +675,52 @@ void UpdatePreviewImages(HWND sci, const std::vector<ImageBlock>& blocks) {
 }  // namespace
 
 void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* links,
-                       const std::wstring& baseDirectory) {
+                       const RenderOptions& renderOptions) {
     if (!sci) {
         return;
     }
+    RenderOptions options = renderOptions;
     RECT client{};
     GetClientRect(sci, &client);
-    RenderOptions options;
-    const int padding = theme::Scale(24, theme::DpiOf(sci));
+    const int dpi = theme::DpiOf(sci);
+    const int padding = theme::Scale(24, dpi);
     options.maxImageWidth = std::max(100, static_cast<int>(client.right) - padding * 2);
-    options.lineHeight =
-        std::max(1, static_cast<int>(S(sci, SCI_TEXTHEIGHT, 0, 0)));
-    options.baseDirectory = baseDirectory;
-    const Document document = Render(source, options);
+
+    const std::string textFont = WideToUtf8(options.textFont);
+    const std::string codeFont = WideToUtf8(options.codeFont);
+    const int textSize = std::max(6, options.textSize);
+    const int codeSize = std::max(6, options.codeSize);
+
+    // Measure the preview with the interface font, not the editor font.
+    S(sci, SCI_STYLESETFORE, STYLE_DEFAULT, theme::kText);
+    S(sci, SCI_STYLESETBACK, STYLE_DEFAULT, theme::kBg);
+    S(sci, SCI_STYLESETFONT, STYLE_DEFAULT, reinterpret_cast<sptr_t>(textFont.c_str()));
+    S(sci, SCI_STYLESETSIZE, STYLE_DEFAULT, textSize);
+    S(sci, SCI_STYLECLEARALL);
+    options.lineHeight = std::max(1, static_cast<int>(S(sci, SCI_TEXTHEIGHT, 0, 0)));
+
+    Document document = Render(source, options);
+
+    // A top and bottom spacer line keep the rendered text off the window edges.
+    const size_t prefix =
+        static_cast<size_t>(std::max(1, theme::Scale(16, dpi) / options.lineHeight));
+    if (prefix > 0) {
+        document.text.insert(0, prefix, '\n');
+        document.styles.insert(document.styles.begin(), prefix, Byte(Style::Text));
+        for (Link& link : document.links) {
+            link.start += prefix;
+        }
+        for (ImageBlock& image : document.images) {
+            image.position += prefix;
+        }
+        for (CodeBlock& block : document.codeBlocks) {
+            block.start += prefix;
+            block.end += prefix;
+        }
+    }
+    document.text.push_back('\n');
+    document.styles.push_back(Byte(Style::Text));
+
     if (links) {
         *links = document.links;
     }
@@ -616,40 +730,42 @@ void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* lin
         S(sci, SCI_SETREADONLY, FALSE);
     }
 
-    S(sci, SCI_STYLESETFORE, STYLE_DEFAULT, theme::kText);
-    S(sci, SCI_STYLESETBACK, STYLE_DEFAULT, theme::kBg);
-    S(sci, SCI_STYLECLEARALL);
-    const int baseSize =
-        std::max(6, static_cast<int>(S(sci, SCI_STYLEGETSIZE, STYLE_DEFAULT)));
-
-    const auto style = [&](Style id, COLORREF fore, COLORREF back, int delta, bool bold,
+    const auto style = [&](Style id, COLORREF fore, COLORREF back, int size, bool bold,
                            bool italic, bool underline = false) {
-        SetStyle(sci, static_cast<int>(id), fore, back, std::max(6, baseSize + delta), bold,
-                 italic, underline);
+        SetStyle(sci, static_cast<int>(id), fore, back, size, bold, italic, underline);
     };
-    style(Style::Text, theme::kText, theme::kBg, 0, false, false);
-    style(Style::H1, theme::kSyntaxHeader, theme::kBg, 10, true, false);
-    style(Style::H2, theme::kSyntaxHeader, theme::kBg, 7, true, false);
-    style(Style::H3, theme::kSyntaxHeader, theme::kBg, 5, true, false);
-    style(Style::H4, theme::kText, theme::kBg, 3, true, false);
-    style(Style::H5, theme::kText, theme::kBg, 2, true, false);
-    style(Style::H6, theme::kText, theme::kBg, 1, true, false);
-    style(Style::Bold, theme::kText, theme::kBg, 0, true, false);
-    style(Style::Italic, theme::kText, theme::kBg, 0, false, true);
-    style(Style::BoldItalic, theme::kText, theme::kBg, 0, true, true);
-    style(Style::Code, theme::kText, theme::kPanelAlt, -1, false, false);
-    style(Style::CodeBlock, theme::kText, theme::kPanelAlt, 0, false, false);
-    style(Style::Link, theme::kSyntaxLink, theme::kBg, 0, false, false, true);
-    style(Style::Quote, theme::kSyntaxComment, theme::kBg, 0, false, true);
-    style(Style::ListBullet, theme::kSyntaxKeyword, theme::kBg, 0, true, false);
-    style(Style::Rule, theme::kTextFaint, theme::kBg, 0, false, false);
-    const std::string codeFont = "Consolas";
-    S(sci, SCI_STYLESETFONT, static_cast<int>(Style::Code),
-      reinterpret_cast<sptr_t>(codeFont.c_str()));
-    S(sci, SCI_STYLESETFONT, static_cast<int>(Style::CodeBlock),
-      reinterpret_cast<sptr_t>(codeFont.c_str()));
+    style(Style::Text, theme::kText, theme::kBg, textSize, false, false);
+    style(Style::H1, theme::kSyntaxHeader, theme::kBg, textSize + 10, true, false);
+    style(Style::H2, theme::kSyntaxHeader, theme::kBg, textSize + 7, true, false);
+    style(Style::H3, theme::kSyntaxHeader, theme::kBg, textSize + 5, true, false);
+    style(Style::H4, theme::kText, theme::kBg, textSize + 3, true, false);
+    style(Style::H5, theme::kText, theme::kBg, textSize + 2, true, false);
+    style(Style::H6, theme::kText, theme::kBg, textSize + 1, true, false);
+    style(Style::Bold, theme::kText, theme::kBg, textSize, true, false);
+    style(Style::Italic, theme::kText, theme::kBg, textSize, false, true);
+    style(Style::BoldItalic, theme::kText, theme::kBg, textSize, true, true);
+    style(Style::Code, theme::kText, theme::kPanelAlt, codeSize, false, false);
+    style(Style::CodeBlock, theme::kText, theme::kPanelAlt, codeSize, false, false);
+    style(Style::CodePad, theme::kText, theme::kPanelAlt,
+          std::max(2, codeSize / 3), false, false);
+    style(Style::Link, theme::kSyntaxLink, theme::kBg, textSize, false, false, true);
+    style(Style::Quote, theme::kSyntaxComment, theme::kBg, textSize, false, true);
+    style(Style::ListBullet, theme::kSyntaxKeyword, theme::kBg, textSize, true, false);
+    style(Style::Rule, theme::kTextFaint, theme::kBg, textSize, false, false);
+
+    const auto setFont = [&](Style id, const std::string& font) {
+        S(sci, SCI_STYLESETFONT, static_cast<int>(id),
+          reinterpret_cast<sptr_t>(font.c_str()));
+    };
+    for (int i = 0; i < static_cast<int>(Style::Count); ++i) {
+        const Style id = static_cast<Style>(i);
+        setFont(id, id == Style::Code || id == Style::CodeBlock || id == Style::CodePad
+                       ? codeFont
+                       : textFont);
+    }
     S(sci, SCI_STYLESETHOTSPOT, static_cast<int>(Style::Link), TRUE);
     S(sci, SCI_STYLESETEOLFILLED, static_cast<int>(Style::CodeBlock), TRUE);
+    S(sci, SCI_STYLESETEOLFILLED, static_cast<int>(Style::CodePad), TRUE);
 
     S(sci, SCI_SETREADONLY, FALSE);
     S(sci, SCI_SETUNDOCOLLECTION, FALSE);
@@ -675,7 +791,7 @@ void RenderToScintilla(HWND sci, std::string_view source, std::vector<Link>* lin
     S(sci, SCI_SETCARETLINEVISIBLE, FALSE);
     S(sci, SCI_SETHSCROLLBAR, FALSE);
     S(sci, SCI_GOTOPOS, 0);
-    UpdatePreviewImages(sci, document.images);
+    UpdatePreviewData(sci, document.images, document.codeBlocks);
     const sptr_t lineCount = std::max<sptr_t>(1, S(sci, SCI_GETLINECOUNT));
     S(sci, SCI_SETFIRSTVISIBLELINE,
       static_cast<uptr_t>(std::min<sptr_t>(std::max<sptr_t>(0, top), lineCount - 1)));

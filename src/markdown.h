@@ -21,6 +21,7 @@ enum class Style : unsigned char {
     BoldItalic,
     Code,
     CodeBlock,
+    CodePad,
     Link,
     Quote,
     ListBullet,
@@ -41,10 +42,19 @@ struct ImageBlock {
     int height = 0;
 };
 
+struct CodeBlock {
+    size_t start = 0;
+    size_t end = 0;
+};
+
 struct RenderOptions {
     int maxImageWidth = 720;
     int lineHeight = 20;
     std::wstring baseDirectory;
+    std::wstring textFont = L"Segoe UI";
+    int textSize = 9;
+    std::wstring codeFont = L"Cascadia Mono";
+    int codeSize = 11;
 };
 
 struct Document {
@@ -52,16 +62,16 @@ struct Document {
     std::vector<unsigned char> styles;
     std::vector<Link> links;
     std::vector<ImageBlock> images;
+    std::vector<CodeBlock> codeBlocks;
 };
 
 // Converts Markdown into plain text plus per-byte style runs.
 Document Render(std::string_view source, const RenderOptions& options = {});
 
 // Replaces the contents of a Scintilla control with a rendered document and
-// configures the preview styles. The control's STYLE_DEFAULT font/size should
-// already be set by editor::ApplySettings.
+// configures the preview styles.
 void RenderToScintilla(HWND sci, std::string_view source,
                        std::vector<Link>* links = nullptr,
-                       const std::wstring& baseDirectory = {});
+                       const RenderOptions& options = {});
 
 }  // namespace markdown

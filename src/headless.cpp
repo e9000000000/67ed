@@ -996,7 +996,8 @@ int x = 1;
     log.check(styleOf("int x = 1;") == static_cast<int>(markdown::Style::CodeBlock) &&
                   styleOf("quote") == static_cast<int>(markdown::Style::Quote) &&
                   styleOf("site") == static_cast<int>(markdown::Style::Link) &&
-                  styleOf("\u2500") == static_cast<int>(markdown::Style::Rule),
+                  styleOf("\u2500") == static_cast<int>(markdown::Style::Rule) &&
+                  doc.codeBlocks.size() == 1,
               "markdown.blocks");
     log.check(doc.links.size() == 1 && doc.links[0].url == "https://example.com" &&
                   doc.links[0].start + doc.links[0].length <= doc.text.size() &&
@@ -1028,13 +1029,37 @@ int x = 1;
     log.check(sci != nullptr, "markdown.editor");
     if (sci) {
         editor::ApplySettings(sci, TestSettings());
-        markdown::RenderToScintilla(sci, "# Title\n\nbody\n");
+        markdown::RenderOptions previewOptions;
+        previewOptions.textFont = L"Segoe UI";
+        previewOptions.textSize = 11;
+        previewOptions.codeFont = L"Cascadia Mono";
+        previewOptions.codeSize = 13;
+        markdown::RenderToScintilla(sci, "# Title\n\nbody\n", nullptr, previewOptions);
+        const sptr_t length = SendMessageW(sci, SCI_GETLENGTH, 0, 0);
+        sptr_t heading = -1;
+        for (sptr_t i = 0; i < length; ++i) {
+            if (SendMessageW(sci, SCI_GETSTYLEAT, static_cast<WPARAM>(i), 0) ==
+                static_cast<LRESULT>(markdown::Style::H1)) {
+                heading = i;
+                break;
+            }
+        }
+        char textFont[64]{};
+        char codeFont[64]{};
+        SendMessageW(sci, SCI_STYLEGETFONT, static_cast<WPARAM>(markdown::Style::Text),
+                     reinterpret_cast<LPARAM>(textFont));
+        SendMessageW(sci, SCI_STYLEGETFONT, static_cast<WPARAM>(markdown::Style::Code),
+                     reinterpret_cast<LPARAM>(codeFont));
         log.check(SendMessageW(sci, SCI_GETSTYLEAT, 0, 0) ==
-                          static_cast<LRESULT>(markdown::Style::H1) &&
-                      SendMessageW(sci, SCI_GETREADONLY, 0, 0) != 0,
+                          static_cast<LRESULT>(markdown::Style::Text) &&
+                      heading > 0 && SendMessageW(sci, SCI_GETREADONLY, 0, 0) != 0,
                   "markdown.scintilla");
+        log.check(std::string(textFont) == "Segoe UI" &&
+                      std::string(codeFont) == "Cascadia Mono",
+                  "markdown.fonts");
         SetWindowPos(sci, nullptr, 0, 0, 700, 500, SWP_NOZORDER | SWP_NOACTIVATE);
-        markdown::RenderToScintilla(sci, "![x](pixel.png)\n", nullptr, dir.wstring());
+        previewOptions.baseDirectory = dir.wstring();
+        markdown::RenderToScintilla(sci, "![x](pixel.png)\n", nullptr, previewOptions);
         log.check(SendMessageW(sci, SCI_GETLINECOUNT, 0, 0) >= 2,
                   "markdown.image.preview");
         DestroyWindow(sci);

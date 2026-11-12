@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <ctime>
+#include <cwctype>
 #include <memory>
 #include <string>
 #include <vector>
@@ -106,6 +107,98 @@ void CenterWindow(HWND hwnd, int width, int height) {    RECT work{};
     const int x = work.left + (workWidth - width) / 2;
     const int y = work.top + (workHeight - height) / 2;
     SetWindowPos(hwnd, nullptr, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+bool HasUrlScheme(const std::wstring& url) {
+    const size_t colon = url.find(L':');
+    if (colon == std::wstring::npos) {
+        return false;
+    }
+    if (colon == 1 && iswalpha(url[0])) {
+        return false;
+    }
+    return true;
+}
+
+std::wstring DecodePercentEscapes(const std::wstring& text) {
+    const std::string bytes = WideToUtf8(text);
+    std::string out;
+    out.reserve(bytes.size());
+    const auto hex = [](char ch) -> int {
+        if (ch >= '0' && ch <= '9') {
+            return ch - '0';
+        }
+        if (ch >= 'a' && ch <= 'f') {
+            return ch - 'a' + 10;
+        }
+        if (ch >= 'A' && ch <= 'F') {
+            return ch - 'A' + 10;
+        }
+        return -1;
+    };
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        if (bytes[i] == '%' && i + 2 < bytes.size()) {
+            const int high = hex(bytes[i + 1]);
+            const int low = hex(bytes[i + 2]);
+            if (high >= 0 && low >= 0) {
+                out.push_back(static_cast<char>((high << 4) | low));
+                i += 2;
+                continue;
+            }
+        }
+        out.push_back(bytes[i]);
+    }
+    return Utf8ToWide(out);
+}
+
+std::wstring FileUrlToPath(std::wstring url) {
+    if (ToLower(url).rfind(L"file://", 0) != 0) {
+        return {};
+    }
+    std::wstring path = url.substr(7);
+    if (!path.empty() && path[0] == L'/') {
+        if (path.size() >= 3 && iswalpha(path[1]) && path[2] == L':') {
+            path.erase(0, 1);
+        }
+    } else if (!path.empty()) {
+        path = L"\\\\" + path;
+    }
+    std::replace(path.begin(), path.end(), L'/', L'\\');
+    return path;
+}
+
+std::wstring ResolveLocalLink(const std::wstring& url, const std::wstring& sourcePath) {
+    std::wstring target = url;
+    const size_t fragment = target.find_first_of(L"#?");
+    if (fragment != std::wstring::npos) {
+        target.resize(fragment);
+    }
+    if (target.empty()) {
+        return {};
+    }
+    if (ToLower(target).rfind(L"file:", 0) == 0) {
+        target = DecodePercentEscapes(FileUrlToPath(target));
+    } else {
+        target = DecodePercentEscapes(target);
+    }
+    if (target.empty()) {
+        return {};
+    }
+    std::replace(target.begin(), target.end(), L'/', L'\\');
+    const bool absolute = (target.size() >= 2 && target[1] == L':') ||
+                          (target.size() >= 2 && target[0] == L'\\' && target[1] == L'\\') ||
+                          (!target.empty() && target[0] == L'\\');
+    if (!absolute) {
+        std::wstring base = sourcePath.empty() ? std::wstring() : DirectoryOf(sourcePath);
+        if (base.empty() || base == L".") {
+            base.clear();
+        }
+        if (!base.empty() && base.back() != L'\\') {
+            base.push_back(L'\\');
+        }
+        target = base + target;
+    }
+    return FullPath(target);
 }
 
 }  // namespace
@@ -2043,8 +2136,14 @@ void App::refreshPreview(Tab& tab) {
     }
     const std::wstring baseDirectory =
         tab.path.empty() ? std::wstring() : DirectoryOf(tab.path);
+    markdown::RenderOptions options;
+    options.baseDirectory = baseDirectory;
+    options.textFont = settings_.uiFontFace;
+    options.textSize = settings_.uiFontSize;
+    options.codeFont = settings_.fontFamily;
+    options.codeSize = settings_.fontSize;
     markdown::RenderToScintilla(tab.previewControl, editor::GetText(tab.sci),
-                                &tab.previewLinks, baseDirectory);
+                                &tab.previewLinks, options);
 }
 
 void App::toggleMarkdownPreview() {
@@ -2137,6 +2236,11 @@ void App::handleScintillaNotify(LPARAM lParam) {
                     lower.rfind(L"mailto:", 0) == 0) {
                     ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr,
                                   SW_SHOWNORMAL);
+                } else if (lower.rfind(L"file:", 0) == 0 || !HasUrlScheme(url)) {
+                    const std::wstring path = ResolveLocalLink(url, tab->path);
+                    if (!path.empty()) {
+                        openPaths({path}, true);
+                    }
                 }
                 break;
             }

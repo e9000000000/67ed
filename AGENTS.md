@@ -7,7 +7,7 @@ server, no WebView, no Electron/Tauri, and no network access at runtime.
 ## Current state
 
 M0–M3 are complete and M4 is in progress. The app builds as a single x64 executable
-(~2.08 MiB) and currently has: custom dark title/tab/status chrome with a burger
+(~2.09 MiB) and currently has: custom dark title/tab/status chrome with a burger
 menu (tabs live in the caption row), one Scintilla
 control per tab, lazy session restore, open/save/save-as, drag-drop, single-instance
 handoff, UTF-8/UTF-16/ANSI detection, atomic chunked saves, word wrap/line
@@ -181,7 +181,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests\run-startup.ps1
   registration helpers, interface/editor font settings, syntax detection and
   styling, scrollbar synchronization, line selection/moves, multi-cursor state,
   occurrence indicators across multiple selections, Markdown rendering, and
-  chunked save. Expect `summary passed=253 failed=0`.
+  chunked save. Expect `summary passed=254 failed=0`.
 - `--bench <file>`: internal open/RSS/find/scroll/save timings on a real file.
 - `--bench-startup`: hidden chrome/editor construction time and RSS.
 - `--make-fixture <path> --mb N [--one-line]`: generate test data.

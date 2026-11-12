@@ -90,13 +90,19 @@ Scintilla supplies most of the editing behaviour directly:
 - `Render` scans blocks (ATX/Setext headings, fenced code, quotes, lists, rules,
   links, images, and paragraphs) and inline markers (`**bold**`, `*italic*`,
   `` `code` ``, links). It returns UTF-8 text plus a style byte per output byte.
-- `RenderToScintilla` applies a preview style set (headings in larger bold text,
-  Consolas code with a panel background, underlined links, quote/list colours)
-  and loads the result into a read-only Scintilla control with wrapping, 24-DIP
-  left/right padding, and an invisible caret.
+- `RenderToScintilla` applies a preview style set: body text uses the interface
+  font, code uses the editor font, headings are larger bold interface text, and
+  links are underlined. The result loads into a read-only Scintilla control with
+  wrapping, 24-DIP left/right padding, top/bottom spacer lines, and an invisible
+  caret.
+- Fenced code reserves small padding lines plus full-width panel lines. A preview
+  subclass paints rounded corners and a border over Scintilla's block background
+  after each paint, so code panels get padding and a border radius without
+  replacing the text control.
 - Link ranges travel with the rendered document; the app marks the link style as
-  a hotspot and opens only `http://`, `https://`, and `mailto:` URLs through
-  `ShellExecuteW`. The URL is not printed after the label.
+  a hotspot and opens `http://`, `https://`, and `mailto:` URLs through
+  `ShellExecuteW`. Local file links resolve against the Markdown file's directory
+  and open in a new tab. The URL is not printed after the label.
 - Standalone local images are decoded with GDI+ at render time. Each reserves
   layout lines in the Scintilla document, and a preview subclass paints the
   decoded image after Scintilla paints, using Scintilla position-to-pixel
@@ -285,7 +291,7 @@ for `.txt`. `--register-default` performs only the silent registration.
 
 - Self-test/bench modes in the same EXE (no separate test runtime dependency), all
   headless: a hidden host window is created and results go to a `--log` file.
-- `--selftest`: 253 checks for CLI parsing, accelerator wiring, single-instance
+- `--selftest`: 254 checks for CLI parsing, accelerator wiring, single-instance
   payloads, JSON, encoding/EOL, session, Scintilla set/get/find/undo,
   search/replace (plain and regex), line navigation, insert/overwrite, file-change
   stamps, recent files/labels, tab reordering, find/line bar state, tab-bar hit
