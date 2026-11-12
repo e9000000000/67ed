@@ -59,8 +59,8 @@ void ApplyThemeColors(HWND sci) {
     S(sci, SCI_SETMARGINSENSITIVEN, 0, FALSE);
 
     S(sci, SCI_INDICSETSTYLE, kOccurrenceIndicator, INDIC_FULLBOX);
-    S(sci, SCI_INDICSETFORE, kOccurrenceIndicator, theme::kAccent);
-    S(sci, SCI_INDICSETALPHA, kOccurrenceIndicator, 55);
+    S(sci, SCI_INDICSETFORE, kOccurrenceIndicator, theme::kOccurrence);
+    S(sci, SCI_INDICSETALPHA, kOccurrenceIndicator, 130);
     S(sci, SCI_INDICSETOUTLINEALPHA, kOccurrenceIndicator, 0);
     S(sci, SCI_INDICSETUNDER, kOccurrenceIndicator, TRUE);
     S(sci, SCI_INDICSETSTROKEWIDTH, kOccurrenceIndicator, 1);
